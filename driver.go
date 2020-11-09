@@ -46,7 +46,7 @@ type Conn struct {
 }
 
 func (c *Conn) Begin() (driver.Tx, error) {
-	return nil, nil
+	return &Tx{}, nil
 }
 
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
@@ -54,5 +54,15 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 }
 
 func (c *Conn) Close() error {
+	return nil
+}
+
+type Tx struct{}
+
+func (t *Tx) Commit() error {
+	return nil
+}
+
+func (t *Tx) Rollback() error {
 	return nil
 }
