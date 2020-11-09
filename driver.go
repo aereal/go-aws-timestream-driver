@@ -8,7 +8,11 @@ import (
 type Driver struct{}
 
 func (d *Driver) Open(dsn string) (driver.Conn, error) {
-	return nil, nil
+	connector, err := d.OpenConnector(dsn)
+	if err != nil {
+		return nil, err
+	}
+	return connector.Connect(context.Background())
 }
 
 func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
