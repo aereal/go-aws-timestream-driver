@@ -54,12 +54,8 @@ func (c *conn) queryContext(ctx context.Context, query string, args []driver.Nam
 	input := &timestreamquery.QueryInput{QueryString: &enhancedQuery}
 	rows := &rows{rs: resultSet{}}
 	cb := func(out *timestreamquery.QueryOutput, lastPage bool) bool {
-		for _, ci := range out.ColumnInfo {
-			rows.rs.columns = append(rows.rs.columns, ci)
-		}
-		for _, row := range out.Rows {
-			rows.rows = append(rows.rows, row)
-		}
+		rows.rs.columns = append(rows.rs.columns, out.ColumnInfo...)
+		rows.rows = append(rows.rows, out.Rows...)
 		return out.NextToken == nil
 	}
 	if err := c.tsq.QueryPagesWithContext(ctx, input, cb); err != nil {
