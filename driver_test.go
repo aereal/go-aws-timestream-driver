@@ -2,7 +2,6 @@ package timestreamdriver
 
 import (
 	"database/sql/driver"
-	"reflect"
 	"testing"
 )
 
@@ -24,9 +23,6 @@ func TestDriver_Open(t *testing.T) {
 				return
 			}
 			defer got.Close()
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Driver.Open() = %v, want %v", got, tt.want)
-			}
 		})
 	}
 }
