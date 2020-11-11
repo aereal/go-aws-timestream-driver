@@ -2,6 +2,7 @@ package timestreamdriver
 
 import (
 	"context"
+	"database/sql"
 	"database/sql/driver"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -9,6 +10,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
 )
+
+var (
+	DriverName = "awstimestream"
+)
+
+func init() {
+	sql.Register(DriverName, &Driver{})
+}
 
 type Driver struct{}
 
