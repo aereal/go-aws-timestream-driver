@@ -11,6 +11,8 @@ import (
 
 var (
 	keyRegion = "region"
+	keyKeyID  = "accessKeyID"
+	keySecret = "secretAccessKey"
 
 	ErrMissingRegion = errors.New("region parameter required")
 )
@@ -40,6 +42,13 @@ func parseDSN(dsn string) (*Config, error) {
 	}
 	if parsed.Hostname() != "" {
 		cfg.Endpoint = fmt.Sprintf("https://%s", parsed.Hostname())
+	}
+	accessKeyID, secretAccessKey := qs.Get(keyKeyID), qs.Get(keySecret)
+	if accessKeyID != "" && secretAccessKey != "" {
+		cfg.CredentialProvider = &credentials.StaticProvider{Value: credentials.Value{
+			AccessKeyID:     accessKeyID,
+			SecretAccessKey: secretAccessKey,
+		}}
 	}
 	return cfg, nil
 }

@@ -11,8 +11,13 @@ import (
 
 func Test_parseDSN(t *testing.T) {
 	df := defaults.Get()
-	providers := defaults.CredProviders(df.Config, df.Handlers)
-	cp := &credentials.ChainProvider{Providers: providers}
+	defaultCredProvider := &credentials.ChainProvider{Providers: defaults.CredProviders(df.Config, df.Handlers)}
+	customCred := &credentials.StaticProvider{
+		Value: credentials.Value{
+			AccessKeyID:     "my-id",
+			SecretAccessKey: "my-secret",
+		},
+	}
 
 	cases := []struct {
 		name    string
@@ -20,8 +25,9 @@ func Test_parseDSN(t *testing.T) {
 		want    *Config
 		wantErr bool
 	}{
-		{"minimal", "awstimestream:///?region=us-east-1", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: cp}, false},
-		{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: cp}, false},
+		{"minimal", "awstimestream:///?region=us-east-1", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: defaultCredProvider}, false},
+		{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultCredProvider}, false},
+		{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: customCred}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
