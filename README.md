@@ -7,6 +7,36 @@
 go get github.com/aereal/go-aws-timestream-driver
 ```
 
+## Usage
+
+```go
+import (
+  "database/sql"
+
+  "github.com/aereal/go-aws-timestream-driver"
+)
+
+func main() {
+  sql.Open(timestreamdriver.DriverName, "awstimestream:///")
+}
+```
+
+See also Data Source Name format section.
+
+## Data Source Name format
+
+In URI template normative definition:
+
+```
+awstimestream://{customEndpointHost}/{?region,accessKeyID,secretAccessKey}
+```
+
+Example:
+
+```
+awstimestream://custom-endpoint.example/?region=us-east-1&accessKeyID=my-key
+```
+
 ## License
 
 See LICENSE file.
