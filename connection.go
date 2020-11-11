@@ -28,7 +28,6 @@ type conn struct {
 var _ interface {
 	driver.Conn
 	driver.QueryerContext
-	driver.Queryer
 } = &conn{}
 
 func (conn) Begin() (driver.Tx, error) {
@@ -41,14 +40,6 @@ func (conn) Prepare(query string) (driver.Stmt, error) {
 
 func (conn) Close() error {
 	return nil
-}
-
-func (c *conn) Query(query string, args []driver.Value) (driver.Rows, error) {
-	nvs := make([]driver.NamedValue, len(args))
-	for i, dv := range args {
-		nvs[i] = driver.NamedValue{Ordinal: i + 1, Value: dv}
-	}
-	return c.queryContext(context.Background(), query, nvs)
 }
 
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
