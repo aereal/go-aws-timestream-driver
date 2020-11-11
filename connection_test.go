@@ -21,7 +21,7 @@ import (
 
 func TestConn_QueryContext_Scalar(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
+		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
 			ColumnInfo: []*timestreamquery.ColumnInfo{
 				{Name: aws.String("int"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeInteger)}},
 				{Name: aws.String("big"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeBigint)}},
@@ -86,7 +86,9 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 			c8 interface{}
 			c9 time.Time
 		)
-		rows.Scan(&c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9)
+		if err := rows.Scan(&c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9); err != nil {
+			t.Fatal(err)
+		}
 		if c1 != 1 {
 			t.Errorf("c1: expected=%v got=%v", 1, c1)
 		}
