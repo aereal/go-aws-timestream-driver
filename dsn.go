@@ -32,13 +32,9 @@ func parseDSN(dsn string) (*Config, error) {
 		return nil, err
 	}
 	qs := parsed.Query()
-	region := qs.Get(keyRegion)
-	if region == "" {
-		return nil, ErrMissingRegion
-	}
-	cfg := &Config{
-		Region:             region,
-		CredentialProvider: &credentials.ChainProvider{Providers: providers},
+	cfg := &Config{CredentialProvider: &credentials.ChainProvider{Providers: providers}}
+	if region := qs.Get(keyRegion); region != "" {
+		cfg.Region = region
 	}
 	if parsed.Hostname() != "" {
 		cfg.Endpoint = fmt.Sprintf("https://%s", parsed.Hostname())

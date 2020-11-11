@@ -25,13 +25,14 @@ func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
 	if err != nil {
 		return nil, err
 	}
-	ses, err := session.NewSessionWithOptions(session.Options{
-		Config: aws.Config{
-			Credentials: credentials.NewCredentials(cfg.CredentialProvider),
-			Region:      &cfg.Region,
-			Endpoint:    &cfg.Endpoint,
-		},
-	})
+	awsCfg := aws.Config{Credentials: credentials.NewCredentials(cfg.CredentialProvider)}
+	if cfg.Region != "" {
+		awsCfg.Region = &cfg.Region
+	}
+	if cfg.Endpoint != "" {
+		awsCfg.Endpoint = &cfg.Endpoint
+	}
+	ses, err := session.NewSessionWithOptions(session.Options{Config: awsCfg})
 	if err != nil {
 		return nil, err
 	}
