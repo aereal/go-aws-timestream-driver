@@ -21,7 +21,7 @@ func TestConnector_Driver(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			connector := NewConnector(c.fields.tsq)
+			connector := &connector{c.fields.tsq}
 			if got := connector.Driver(); !reflect.DeepEqual(got, c.want) {
 				t.Errorf("Connector.Driver() = %v, want %v", got, c.want)
 			}

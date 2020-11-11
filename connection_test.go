@@ -58,7 +58,7 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	})))
 
 	ctx := context.Background()
-	db := sql.OpenDB(NewConnector(tsq))
+	db := sql.OpenDB(&connector{tsq})
 	rows, err := db.QueryContext(ctx, `SELECT 1 AS num`)
 	if err != nil {
 		t.Fatal(err)
