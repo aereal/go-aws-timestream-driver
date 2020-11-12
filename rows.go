@@ -32,11 +32,15 @@ var _ interface {
 	driver.RowsColumnTypeDatabaseTypeName
 } = &rows{}
 
-func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
+func (r *rows) getColumn(index int) *timestreamquery.ColumnInfo {
 	if len(r.rs.columns) <= index {
-		return ""
+		return nil
 	}
-	ci := r.rs.columns[index]
+	return r.rs.columns[index]
+}
+
+func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
+	ci := r.getColumn(index)
 	if ci.Type.ScalarType != nil {
 		return *ci.Type.ScalarType
 	}
@@ -63,7 +67,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 	for i, datum := range r.rows[r.pos].Data {
-		columnInfo := r.rs.columns[i]
+		columnInfo := r.getColumn(i)
 		var err error
 		dest[i], err = scanColumn(datum, columnInfo)
 		if err != nil {
