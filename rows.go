@@ -7,13 +7,25 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"reflect"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
 )
 
-var tsTimeLayout = "2006-01-02 15:04:05.999999999"
+var (
+	tsTimeLayout    = "2006-01-02 15:04:05.999999999"
+	typeNameUnknown = timestreamquery.ScalarTypeUnknown
+	anyType         = reflect.TypeOf(new(interface{})).Elem()
+	intType         = reflect.TypeOf(int(0))
+	bigintType      = reflect.TypeOf(int64(0))
+	doubleType      = reflect.TypeOf(float64(0))
+	boolType        = reflect.TypeOf(true)
+	stringType      = reflect.TypeOf("")
+	nullType        = reflect.TypeOf(nil)
+	timeType        = reflect.TypeOf(time.Time{})
+)
 
 type resultSet struct {
 	columns []*timestreamquery.ColumnInfo
@@ -27,8 +39,53 @@ type rows struct {
 }
 
 var _ interface {
-	driver.Rows
+	driver.RowsColumnTypeDatabaseTypeName
+	driver.RowsColumnTypeScanType
 } = &rows{}
+
+func (r *rows) getColumn(index int) *timestreamquery.ColumnInfo {
+	if len(r.rs.columns) <= index {
+		return nil
+	}
+	return r.rs.columns[index]
+}
+
+func (r *rows) ColumnTypeScanType(index int) reflect.Type {
+	ci := r.getColumn(index)
+	if ci == nil {
+		return anyType
+	}
+	switch dt := getTSDataType(ci); dt {
+	case timestreamquery.ScalarTypeBigint:
+		return bigintType
+	case timestreamquery.ScalarTypeBoolean:
+		return boolType
+	case timestreamquery.ScalarTypeDate:
+		return timeType
+	case timestreamquery.ScalarTypeDouble:
+		return doubleType
+	case timestreamquery.ScalarTypeInteger:
+		return intType
+	case timestreamquery.ScalarTypeIntervalDayToSecond:
+		return stringType
+	case timestreamquery.ScalarTypeIntervalYearToMonth:
+		return stringType
+	case timestreamquery.ScalarTypeTime:
+		return timeType
+	case timestreamquery.ScalarTypeTimestamp:
+		return timeType
+	case timestreamquery.ScalarTypeVarchar:
+		return stringType
+	case timestreamquery.ScalarTypeUnknown:
+		return nullType
+	default:
+		return anyType
+	}
+}
+
+func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
+	return getTSDataType(r.getColumn(index))
+}
 
 func (r *rows) Columns() []string {
 	if r.columnNames != nil {
@@ -50,7 +107,7 @@ func (r *rows) Next(dest []driver.Value) error {
 		return io.EOF
 	}
 	for i, datum := range r.rows[r.pos].Data {
-		columnInfo := r.rs.columns[i]
+		columnInfo := r.getColumn(i)
 		var err error
 		dest[i], err = scanColumn(datum, columnInfo)
 		if err != nil {
@@ -145,4 +202,14 @@ func parseTime(datum *timestreamquery.Datum) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return parsed, nil
+}
+
+func getTSDataType(ci *timestreamquery.ColumnInfo) string {
+	if ci == nil {
+		return typeNameUnknown
+	}
+	if ci.Type.ScalarType != nil {
+		return *ci.Type.ScalarType
+	}
+	return typeNameUnknown
 }

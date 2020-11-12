@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -64,13 +65,21 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer rows.Close()
-	cols, err := rows.Columns()
-	if err != nil {
-		t.Fatal(err)
+	expectedColumns := columnTypeExpectations{
+		{name: "int", databaseTypeName: timestreamquery.ScalarTypeInteger, scanType: reflect.TypeOf(int(0))},
+		{name: "big", databaseTypeName: timestreamquery.ScalarTypeBigint, scanType: reflect.TypeOf(int64(0))},
+		{name: "percent", databaseTypeName: timestreamquery.ScalarTypeDouble, scanType: reflect.TypeOf(float64(0))},
+		{name: "bool", databaseTypeName: timestreamquery.ScalarTypeBoolean, scanType: reflect.TypeOf(true)},
+		{name: "str", databaseTypeName: timestreamquery.ScalarTypeVarchar, scanType: reflect.TypeOf("")},
+		{name: "dur1", databaseTypeName: timestreamquery.ScalarTypeIntervalDayToSecond, scanType: reflect.TypeOf("")},
+		{name: "dur2", databaseTypeName: timestreamquery.ScalarTypeIntervalYearToMonth, scanType: reflect.TypeOf("")},
+		{name: "nullish", databaseTypeName: timestreamquery.ScalarTypeUnknown, scanType: reflect.TypeOf(nil)},
+		{name: "time", databaseTypeName: timestreamquery.ScalarTypeTime, scanType: reflect.TypeOf(time.Time{})},
 	}
-	expectedColumns := []string{"int", "big", "percent", "bool", "str", "dur1", "dur2", "nullish", "time"}
-	if !reflect.DeepEqual(cols, expectedColumns) {
-		t.Errorf("Rows.Columns(): expected=%#v got=%#v", expectedColumns, cols)
+	if cts, err := rows.ColumnTypes(); err == nil {
+		expectedColumns.compare(t, cts)
+	} else {
+		t.Error(err)
 	}
 	rowsScanned := false
 	for rows.Next() {
@@ -159,4 +168,40 @@ func Test_interpolatesQuery(t *testing.T) {
 			}
 		})
 	}
+}
+
+type columnTypeExpectation struct {
+	name             string
+	databaseTypeName string
+	scanType         reflect.Type
+}
+
+func (e columnTypeExpectation) compare(ct *sql.ColumnType) error {
+	if actual := ct.Name(); e.name != actual {
+		return fmt.Errorf("Name: actual=%q expected=%q", actual, e.name)
+	}
+	if actual := ct.DatabaseTypeName(); e.databaseTypeName != actual {
+		return fmt.Errorf("DatabaseTypeName: actual=%q expected=%q", actual, e.databaseTypeName)
+	}
+	if actual := ct.ScanType(); actual != e.scanType {
+		return fmt.Errorf("ScanType: actual=%s expected=%s", actual, e.scanType)
+	}
+	return nil
+}
+
+type columnTypeExpectations []columnTypeExpectation
+
+func (expectations columnTypeExpectations) compare(t *testing.T, columnTypes []*sql.ColumnType) bool {
+	if len(columnTypes) != len(expectations) {
+		t.Errorf("length mismatch: expected %d items; got %d items", len(expectations), len(columnTypes))
+		return false
+	}
+
+	for i, ce := range expectations {
+		actual := columnTypes[i]
+		if err := ce.compare(actual); err != nil {
+			t.Errorf("#%d: %s", i, err)
+		}
+	}
+	return true
 }
