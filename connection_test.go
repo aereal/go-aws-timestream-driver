@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"testing"
 	"time"
@@ -65,15 +66,15 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	}
 	defer rows.Close()
 	expectedColumns := columnTypeExpectations{
-		{name: "int", databaseTypeName: timestreamquery.ScalarTypeInteger},
-		{name: "big", databaseTypeName: timestreamquery.ScalarTypeBigint},
-		{name: "percent", databaseTypeName: timestreamquery.ScalarTypeDouble},
-		{name: "bool", databaseTypeName: timestreamquery.ScalarTypeBoolean},
-		{name: "str", databaseTypeName: timestreamquery.ScalarTypeVarchar},
-		{name: "dur1", databaseTypeName: timestreamquery.ScalarTypeIntervalDayToSecond},
-		{name: "dur2", databaseTypeName: timestreamquery.ScalarTypeIntervalYearToMonth},
-		{name: "nullish", databaseTypeName: timestreamquery.ScalarTypeUnknown},
-		{name: "time", databaseTypeName: timestreamquery.ScalarTypeTime},
+		{name: "int", databaseTypeName: timestreamquery.ScalarTypeInteger, scanType: reflect.TypeOf(int(0))},
+		{name: "big", databaseTypeName: timestreamquery.ScalarTypeBigint, scanType: reflect.TypeOf(int64(0))},
+		{name: "percent", databaseTypeName: timestreamquery.ScalarTypeDouble, scanType: reflect.TypeOf(float64(0))},
+		{name: "bool", databaseTypeName: timestreamquery.ScalarTypeBoolean, scanType: reflect.TypeOf(true)},
+		{name: "str", databaseTypeName: timestreamquery.ScalarTypeVarchar, scanType: reflect.TypeOf("")},
+		{name: "dur1", databaseTypeName: timestreamquery.ScalarTypeIntervalDayToSecond, scanType: reflect.TypeOf("")},
+		{name: "dur2", databaseTypeName: timestreamquery.ScalarTypeIntervalYearToMonth, scanType: reflect.TypeOf("")},
+		{name: "nullish", databaseTypeName: timestreamquery.ScalarTypeUnknown, scanType: reflect.TypeOf(nil)},
+		{name: "time", databaseTypeName: timestreamquery.ScalarTypeTime, scanType: reflect.TypeOf(time.Time{})},
 	}
 	if cts, err := rows.ColumnTypes(); err == nil {
 		expectedColumns.compare(t, cts)
@@ -172,6 +173,7 @@ func Test_interpolatesQuery(t *testing.T) {
 type columnTypeExpectation struct {
 	name             string
 	databaseTypeName string
+	scanType         reflect.Type
 }
 
 func (e columnTypeExpectation) compare(ct *sql.ColumnType) error {
@@ -180,6 +182,9 @@ func (e columnTypeExpectation) compare(ct *sql.ColumnType) error {
 	}
 	if actual := ct.DatabaseTypeName(); e.databaseTypeName != actual {
 		return fmt.Errorf("DatabaseTypeName: actual=%q expected=%q", actual, e.databaseTypeName)
+	}
+	if actual := ct.ScanType(); actual != e.scanType {
+		return fmt.Errorf("ScanType: actual=%s expected=%s", actual, e.scanType)
 	}
 	return nil
 }

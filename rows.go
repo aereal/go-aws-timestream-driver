@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"reflect"
 	"strconv"
 	"time"
 
@@ -14,7 +15,16 @@ import (
 )
 
 var (
-	tsTimeLayout = "2006-01-02 15:04:05.999999999"
+	tsTimeLayout    = "2006-01-02 15:04:05.999999999"
+	typeNameUnknown = timestreamquery.ScalarTypeUnknown
+	anyType         = reflect.TypeOf(new(interface{})).Elem()
+	intType         = reflect.TypeOf(int(0))
+	bigintType      = reflect.TypeOf(int64(0))
+	doubleType      = reflect.TypeOf(float64(0))
+	boolType        = reflect.TypeOf(true)
+	stringType      = reflect.TypeOf("")
+	nullType        = reflect.TypeOf(nil)
+	timeType        = reflect.TypeOf(time.Time{})
 )
 
 type resultSet struct {
@@ -30,6 +40,7 @@ type rows struct {
 
 var _ interface {
 	driver.RowsColumnTypeDatabaseTypeName
+	driver.RowsColumnTypeScanType
 } = &rows{}
 
 func (r *rows) getColumn(index int) *timestreamquery.ColumnInfo {
@@ -37,6 +48,39 @@ func (r *rows) getColumn(index int) *timestreamquery.ColumnInfo {
 		return nil
 	}
 	return r.rs.columns[index]
+}
+
+func (r *rows) ColumnTypeScanType(index int) reflect.Type {
+	ci := r.getColumn(index)
+	if ci == nil {
+		return anyType
+	}
+	switch dt := getTSDataType(ci); dt {
+	case timestreamquery.ScalarTypeBigint:
+		return bigintType
+	case timestreamquery.ScalarTypeBoolean:
+		return boolType
+	case timestreamquery.ScalarTypeDate:
+		return timeType
+	case timestreamquery.ScalarTypeDouble:
+		return doubleType
+	case timestreamquery.ScalarTypeInteger:
+		return intType
+	case timestreamquery.ScalarTypeIntervalDayToSecond:
+		return stringType
+	case timestreamquery.ScalarTypeIntervalYearToMonth:
+		return stringType
+	case timestreamquery.ScalarTypeTime:
+		return timeType
+	case timestreamquery.ScalarTypeTimestamp:
+		return timeType
+	case timestreamquery.ScalarTypeVarchar:
+		return stringType
+	case timestreamquery.ScalarTypeUnknown:
+		return nullType
+	default:
+		return anyType
+	}
 }
 
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
