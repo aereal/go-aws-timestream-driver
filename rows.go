@@ -40,11 +40,7 @@ func (r *rows) getColumn(index int) *timestreamquery.ColumnInfo {
 }
 
 func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
-	ci := r.getColumn(index)
-	if ci.Type.ScalarType != nil {
-		return *ci.Type.ScalarType
-	}
-	return "UNKNOWN"
+	return getTSDataType(r.getColumn(index))
 }
 
 func (r *rows) Columns() []string {
@@ -162,4 +158,14 @@ func parseTime(datum *timestreamquery.Datum) (time.Time, error) {
 		return time.Time{}, err
 	}
 	return parsed, nil
+}
+
+func getTSDataType(ci *timestreamquery.ColumnInfo) string {
+	if ci == nil {
+		return typeNameUnknown
+	}
+	if ci.Type.ScalarType != nil {
+		return *ci.Type.ScalarType
+	}
+	return typeNameUnknown
 }
