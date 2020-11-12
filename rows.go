@@ -13,7 +13,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
 )
 
-var tsTimeLayout = "2006-01-02 15:04:05.999999999"
+var (
+	tsTimeLayout = "2006-01-02 15:04:05.999999999"
+)
 
 type resultSet struct {
 	columns []*timestreamquery.ColumnInfo
@@ -27,8 +29,19 @@ type rows struct {
 }
 
 var _ interface {
-	driver.Rows
+	driver.RowsColumnTypeDatabaseTypeName
 } = &rows{}
+
+func (r *rows) ColumnTypeDatabaseTypeName(index int) string {
+	if len(r.rs.columns) <= index {
+		return ""
+	}
+	ci := r.rs.columns[index]
+	if ci.Type.ScalarType != nil {
+		return *ci.Type.ScalarType
+	}
+	return "UNKNOWN"
+}
 
 func (r *rows) Columns() []string {
 	if r.columnNames != nil {
