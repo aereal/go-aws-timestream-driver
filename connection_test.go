@@ -24,15 +24,15 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
 			ColumnInfo: []*timestreamquery.ColumnInfo{
-				{Name: aws.String("int"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeInteger)}},
-				{Name: aws.String("big"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeBigint)}},
-				{Name: aws.String("percent"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeDouble)}},
-				{Name: aws.String("bool"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeBoolean)}},
-				{Name: aws.String("str"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeVarchar)}},
-				{Name: aws.String("dur1"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeIntervalDayToSecond)}},
-				{Name: aws.String("dur2"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeIntervalYearToMonth)}},
-				{Name: aws.String("nullish"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeUnknown)}},
-				{Name: aws.String("time"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeTime)}},
+				scalarColumn("int", timestreamquery.ScalarTypeInteger),
+				scalarColumn("big", timestreamquery.ScalarTypeBigint),
+				scalarColumn("percent", timestreamquery.ScalarTypeDouble),
+				scalarColumn("bool", timestreamquery.ScalarTypeBoolean),
+				scalarColumn("str", timestreamquery.ScalarTypeVarchar),
+				scalarColumn("dur1", timestreamquery.ScalarTypeIntervalDayToSecond),
+				scalarColumn("dur2", timestreamquery.ScalarTypeIntervalYearToMonth),
+				scalarColumn("nullish", timestreamquery.ScalarTypeUnknown),
+				scalarColumn("time", timestreamquery.ScalarTypeTime),
 			},
 			Rows: []*timestreamquery.Row{{
 				Data: []*timestreamquery.Datum{
@@ -204,4 +204,13 @@ func (expectations columnTypeExpectations) compare(t *testing.T, columnTypes []*
 		}
 	}
 	return true
+}
+
+func scalarColumn(name, typ string) *timestreamquery.ColumnInfo {
+	return &timestreamquery.ColumnInfo{
+		Name: &name,
+		Type: &timestreamquery.Type{
+			ScalarType: &typ,
+		},
+	}
 }
