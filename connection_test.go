@@ -24,15 +24,15 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
 			ColumnInfo: []*timestreamquery.ColumnInfo{
-				{Name: aws.String("int"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeInteger)}},
-				{Name: aws.String("big"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeBigint)}},
-				{Name: aws.String("percent"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeDouble)}},
-				{Name: aws.String("bool"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeBoolean)}},
-				{Name: aws.String("str"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeVarchar)}},
-				{Name: aws.String("dur1"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeIntervalDayToSecond)}},
-				{Name: aws.String("dur2"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeIntervalYearToMonth)}},
-				{Name: aws.String("nullish"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeUnknown)}},
-				{Name: aws.String("time"), Type: &timestreamquery.Type{ScalarType: aws.String(timestreamquery.ScalarTypeTime)}},
+				scalarColumn("int", timestreamquery.ScalarTypeInteger),
+				scalarColumn("big", timestreamquery.ScalarTypeBigint),
+				scalarColumn("percent", timestreamquery.ScalarTypeDouble),
+				scalarColumn("bool", timestreamquery.ScalarTypeBoolean),
+				scalarColumn("str", timestreamquery.ScalarTypeVarchar),
+				scalarColumn("dur1", timestreamquery.ScalarTypeIntervalDayToSecond),
+				scalarColumn("dur2", timestreamquery.ScalarTypeIntervalYearToMonth),
+				scalarColumn("nullish", timestreamquery.ScalarTypeUnknown),
+				scalarColumn("time", timestreamquery.ScalarTypeTime),
 			},
 			Rows: []*timestreamquery.Row{{
 				Data: []*timestreamquery.Datum{
@@ -129,6 +129,80 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	}
 }
 
+func TestConn_QueryContext_Array(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
+			ColumnInfo: []*timestreamquery.ColumnInfo{
+				arrayColumn("strs", timestreamquery.ScalarTypeVarchar),
+				arrayColumn("ints", timestreamquery.ScalarTypeInteger),
+				arrayColumn("doubles", timestreamquery.ScalarTypeDouble),
+				arrayColumn("bools", timestreamquery.ScalarTypeBoolean),
+			},
+			Rows: []*timestreamquery.Row{
+				{
+					Data: []*timestreamquery.Datum{
+						arrayValue("abc", "def"),
+						arrayValue("1", "2"),
+						arrayValue("1.0", "2.0"),
+						arrayValue("true", "false"),
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+	tsq := timestreamquery.New(session.Must(session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			Region:      aws.String("us-east-1"),
+			Endpoint:    aws.String(srv.URL),
+			Credentials: credentials.NewStaticCredentials("id", "secret", "token"),
+		},
+	})))
+
+	ctx := context.Background()
+	db := sql.OpenDB(&connector{tsq})
+	rows, err := db.QueryContext(ctx, `SELECT split('abc/def', '/') AS strs, [1, 2] AS ints, [1.0, 2.0] AS doubles, [true, false] AS bools`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedColumns := []string{"strs", "ints", "doubles", "bools"}
+	if !reflect.DeepEqual(cols, expectedColumns) {
+		t.Errorf("Rows.Columns(): expected=%#v got=%#v", expectedColumns, cols)
+	}
+	for rows.Next() {
+		var (
+			c1 []string
+			c2 []int
+			c3 []float64
+			c4 []bool
+		)
+		if err := rows.Scan(Array(&c1), Array(&c2), Array(&c3), Array(&c4)); err != nil {
+			t.Fatal(err)
+		}
+		expectedStrs := []string{"abc", "def"}
+		if !reflect.DeepEqual(c1, expectedStrs) {
+			t.Errorf("Rows.Scan(): expected=%#v got=%#v", expectedStrs, c1)
+		}
+		expectedInts := []int{1, 2}
+		if !reflect.DeepEqual(c2, expectedInts) {
+			t.Errorf("Rows.Scan(): expected=%#v got=%#v", expectedInts, c2)
+		}
+		expectedDoubles := []float64{1, 2}
+		if !reflect.DeepEqual(c3, expectedDoubles) {
+			t.Errorf("Rows.Scan(): expected=%#v got=%#v", expectedDoubles, c3)
+		}
+		expectedBools := []bool{true, false}
+		if !reflect.DeepEqual(c4, expectedBools) {
+			t.Errorf("Rows.Scan(): expected=%#v got=%#v", expectedBools, c4)
+		}
+	}
+}
+
 type yuno struct{}
 
 var _ driver.Valuer = &yuno{}
@@ -204,4 +278,31 @@ func (expectations columnTypeExpectations) compare(t *testing.T, columnTypes []*
 		}
 	}
 	return true
+}
+
+func scalarColumn(name, typ string) *timestreamquery.ColumnInfo {
+	return &timestreamquery.ColumnInfo{
+		Name: &name,
+		Type: &timestreamquery.Type{
+			ScalarType: &typ,
+		},
+	}
+}
+
+func arrayColumn(name, typ string) *timestreamquery.ColumnInfo {
+	return &timestreamquery.ColumnInfo{
+		Name: &name,
+		Type: &timestreamquery.Type{
+			ArrayColumnInfo: &timestreamquery.ColumnInfo{
+				Type: &timestreamquery.Type{
+					ScalarType: &typ}}}}
+}
+
+func arrayValue(values ...string) *timestreamquery.Datum {
+	dm := &timestreamquery.Datum{ArrayValue: []*timestreamquery.Datum{}}
+	for _, v := range values {
+		vv := v
+		dm.ArrayValue = append(dm.ArrayValue, &timestreamquery.Datum{ScalarValue: &vv})
+	}
+	return dm
 }
