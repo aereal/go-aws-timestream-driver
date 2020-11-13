@@ -2,7 +2,6 @@ package timestreamdriver
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -18,7 +17,7 @@ var (
 )
 
 type Config struct {
-	Endpoint           string
+	EndpointHostname   string
 	Region             string
 	CredentialProvider credentials.Provider
 }
@@ -36,8 +35,8 @@ func parseDSN(dsn string) (*Config, error) {
 	if region := qs.Get(keyRegion); region != "" {
 		cfg.Region = region
 	}
-	if parsed.Hostname() != "" {
-		cfg.Endpoint = fmt.Sprintf("https://%s", parsed.Hostname())
+	if endpointHost := parsed.Hostname(); endpointHost != "" {
+		cfg.EndpointHostname = endpointHost
 	}
 	accessKeyID, secretAccessKey := qs.Get(keyKeyID), qs.Get(keySecret)
 	if accessKeyID != "" && secretAccessKey != "" {

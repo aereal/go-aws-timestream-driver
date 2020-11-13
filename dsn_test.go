@@ -24,9 +24,9 @@ func init() {
 		},
 	}
 	dsnConfigAggr = dsnConfigPairAggr{
-		minimal:           dsnConfigPair{"minimal", "awstimestream:///", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider}},
-		customEndpoint:    dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultProvider}},
-		staticCredentials: dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}},
+		minimal:           dsnConfigPair{"minimal", "awstimestream:///", &Config{EndpointHostname: "", Region: "", CredentialProvider: defaultProvider}},
+		customEndpoint:    dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{EndpointHostname: "my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultProvider}},
+		staticCredentials: dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{EndpointHostname: "", Region: "us-east-1", CredentialProvider: staticProvider}},
 	}
 }
 
@@ -68,8 +68,8 @@ func Test_parseDSN(t *testing.T) {
 }
 
 func eqConfig(actual, expected *Config) error {
-	if actual.Endpoint != expected.Endpoint {
-		return fmt.Errorf("Endpoint:\n  actual: %s\nexpected: %s", actual.Endpoint, expected.Endpoint)
+	if actual.EndpointHostname != expected.EndpointHostname {
+		return fmt.Errorf("Endpoint:\n  actual: %s\nexpected: %s", actual.EndpointHostname, expected.EndpointHostname)
 	}
 	if actual.Region != expected.Region {
 		return fmt.Errorf("Region:\n  actual: %s\nexpected: %s", actual.Region, expected.Region)
