@@ -23,27 +23,44 @@ func init() {
 			SecretAccessKey: "my-secret",
 		},
 	}
+	dsnConfigAggr = dsnConfigPairAggr{
+		minimal:           dsnConfigPair{"minimal", "awstimestream:///", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider}},
+		customEndpoint:    dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultProvider}},
+		staticCredentials: dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}},
+	}
 }
+
+type dsnConfigPair struct {
+	name string
+	dsn  string
+	cfg  *Config
+}
+
+type dsnConfigPairAggr struct {
+	minimal           dsnConfigPair
+	customEndpoint    dsnConfigPair
+	staticCredentials dsnConfigPair
+}
+
+var dsnConfigAggr dsnConfigPairAggr
 
 func Test_parseDSN(t *testing.T) {
 	cases := []struct {
-		name    string
-		dsn     string
-		want    *Config
-		wantErr bool
+		dsnConfig dsnConfigPair
+		wantErr   bool
 	}{
-		{"minimal", "awstimestream:///", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider}, false},
-		{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultProvider}, false},
-		{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}, false},
+		{dsnConfigAggr.minimal, false},
+		{dsnConfigAggr.customEndpoint, false},
+		{dsnConfigAggr.staticCredentials, false},
 	}
 	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			got, err := parseDSN(c.dsn)
+		t.Run(c.dsnConfig.name, func(t *testing.T) {
+			got, err := parseDSN(c.dsnConfig.dsn)
 			if (err != nil) != c.wantErr {
 				t.Errorf("parseDSN() error = %v, wantErr %v", err, c.wantErr)
 				return
 			}
-			if err := eqConfig(got, c.want); err != nil {
+			if err := eqConfig(got, c.dsnConfig.cfg); err != nil {
 				t.Error(err)
 			}
 		})
