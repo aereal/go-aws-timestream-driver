@@ -9,25 +9,32 @@ import (
 	"github.com/aws/aws-sdk-go/aws/defaults"
 )
 
-func Test_parseDSN(t *testing.T) {
+var (
+	defaultProvider *credentials.ChainProvider
+	staticProvider  *credentials.StaticProvider
+)
+
+func init() {
 	df := defaults.Get()
-	defaultCredProvider := &credentials.ChainProvider{Providers: defaults.CredProviders(df.Config, df.Handlers)}
-	customCred := &credentials.StaticProvider{
+	defaultProvider = &credentials.ChainProvider{Providers: defaults.CredProviders(df.Config, df.Handlers)}
+	staticProvider = &credentials.StaticProvider{
 		Value: credentials.Value{
 			AccessKeyID:     "my-id",
 			SecretAccessKey: "my-secret",
 		},
 	}
+}
 
+func Test_parseDSN(t *testing.T) {
 	cases := []struct {
 		name    string
 		dsn     string
 		want    *Config
 		wantErr bool
 	}{
-		{"minimal", "awstimestream:///", &Config{Endpoint: "", Region: "", CredentialProvider: defaultCredProvider}, false},
-		{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultCredProvider}, false},
-		{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: customCred}, false},
+		{"minimal", "awstimestream:///", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider}, false},
+		{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultProvider}, false},
+		{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
