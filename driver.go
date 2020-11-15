@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 
 	"github.com/aereal/go-aws-timestream-driver/config"
 	"github.com/aereal/go-aws-timestream-driver/constants"
@@ -41,8 +40,8 @@ func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
 	if cfg.Region != "" {
 		awsCfg.Region = &cfg.Region
 	}
-	if cfg.EndpointHostname != "" {
-		awsCfg.Endpoint = aws.String(fmt.Sprintf("https://%s", cfg.EndpointHostname))
+	if cfg.Endpoint != "" {
+		awsCfg.Endpoint = aws.String(cfg.Endpoint)
 	}
 	ses, err := session.NewSessionWithOptions(session.Options{Config: awsCfg})
 	if err != nil {

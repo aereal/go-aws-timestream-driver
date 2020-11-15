@@ -24,9 +24,10 @@ func init() {
 		},
 	}
 	dsnConfigAggr = dsnConfigPairAggr{
-		minimal:           dsnConfigPair{"minimal", "awstimestream:///", &Config{EndpointHostname: "", Region: "", CredentialProvider: defaultProvider}},
-		customEndpoint:    dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example:8000/?region=us-east-1", &Config{EndpointHostname: "my.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
-		staticCredentials: dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{EndpointHostname: "", Region: "us-east-1", CredentialProvider: staticProvider}},
+		minimal:              dsnConfigPair{"minimal", "awstimestream:///", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider}},
+		customEndpoint:       dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example:8000/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
+		customSchemeEndpoint: dsnConfigPair{"custom endpoint", "awstimestream+http://insecure.custom.endpoint.example:8000/?region=us-east-1", &Config{Endpoint: "http://insecure.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
+		staticCredentials:    dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}},
 	}
 }
 
@@ -37,9 +38,10 @@ type dsnConfigPair struct {
 }
 
 type dsnConfigPairAggr struct {
-	minimal           dsnConfigPair
-	customEndpoint    dsnConfigPair
-	staticCredentials dsnConfigPair
+	minimal              dsnConfigPair
+	customEndpoint       dsnConfigPair
+	customSchemeEndpoint dsnConfigPair
+	staticCredentials    dsnConfigPair
 }
 
 var dsnConfigAggr dsnConfigPairAggr
@@ -51,6 +53,7 @@ func Test_parseDSN(t *testing.T) {
 	}{
 		{dsnConfigAggr.minimal, false},
 		{dsnConfigAggr.customEndpoint, false},
+		{dsnConfigAggr.customSchemeEndpoint, false},
 		{dsnConfigAggr.staticCredentials, false},
 	}
 	for _, c := range cases {
@@ -68,8 +71,8 @@ func Test_parseDSN(t *testing.T) {
 }
 
 func eqConfig(actual, expected *Config) error {
-	if actual.EndpointHostname != expected.EndpointHostname {
-		return fmt.Errorf("Endpoint:\n  actual: %s\nexpected: %s", actual.EndpointHostname, expected.EndpointHostname)
+	if actual.Endpoint != expected.Endpoint {
+		return fmt.Errorf("Endpoint:\n  actual: %s\nexpected: %s", actual.Endpoint, expected.Endpoint)
 	}
 	if actual.Region != expected.Region {
 		return fmt.Errorf("Region:\n  actual: %s\nexpected: %s", actual.Region, expected.Region)

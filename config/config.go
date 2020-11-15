@@ -1,8 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"net/url"
+	"strings"
 
+	"github.com/aereal/go-aws-timestream-driver/constants"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/defaults"
 )
@@ -14,7 +17,7 @@ var (
 )
 
 type Config struct {
-	EndpointHostname   string
+	Endpoint           string
 	Region             string
 	CredentialProvider credentials.Provider
 }
@@ -27,13 +30,17 @@ func ParseDSN(dsn string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	scheme, err := parseScheme(parsed.Scheme)
+	if err != nil {
+		return nil, err
+	}
 	qs := parsed.Query()
 	cfg := &Config{CredentialProvider: &credentials.ChainProvider{Providers: providers}}
 	if region := qs.Get(keyRegion); region != "" {
 		cfg.Region = region
 	}
 	if endpointHost := parsed.Host; endpointHost != "" {
-		cfg.EndpointHostname = endpointHost
+		cfg.Endpoint = fmt.Sprintf("%s://%s", scheme, endpointHost)
 	}
 	accessKeyID, secretAccessKey := qs.Get(keyKeyID), qs.Get(keySecret)
 	if accessKeyID != "" && secretAccessKey != "" {
@@ -43,4 +50,12 @@ func ParseDSN(dsn string) (*Config, error) {
 		}}
 	}
 	return cfg, nil
+}
+
+func parseScheme(scheme string) (string, error) {
+	if scheme == constants.DriverName {
+		return "https", nil
+	}
+	customScheme := strings.Replace(scheme, constants.DriverName+"+", "", 1)
+	return customScheme, nil
 }
