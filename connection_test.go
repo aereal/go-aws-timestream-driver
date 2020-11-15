@@ -199,7 +199,7 @@ func unmarshalSubsegment(seg *xray.Segment) []*xray.Segment {
 	segs := make([]*xray.Segment, len(seg.Subsegments))
 	for i, s := range seg.Subsegments {
 		var v *xray.Segment
-		json.Unmarshal(s, &v)
+		_ = json.Unmarshal(s, &v)
 		segs[i] = v
 	}
 	return segs
