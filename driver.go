@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/aereal/go-aws-timestream-driver/config"
+	"github.com/aereal/go-aws-timestream-driver/constants"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -14,7 +15,7 @@ import (
 )
 
 var (
-	DriverName = "awstimestream"
+	DriverName = constants.DriverName
 )
 
 func init() {
