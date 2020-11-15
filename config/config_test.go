@@ -29,6 +29,7 @@ func init() {
 		customSchemeEndpoint: dsnConfigPair{"custom endpoint", "awstimestream+http://insecure.custom.endpoint.example:8000/?region=us-east-1", &Config{Endpoint: "http://insecure.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
 		staticCredentials:    dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}},
 		xray:                 dsnConfigPair{"minimal", "awstimestream:///?enableXray=true", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider, EnableXray: true}},
+		invalidScheme:        dsnConfigPair{"ng/invalid scheme", "http:///", nil},
 	}
 }
 
@@ -44,6 +45,7 @@ type dsnConfigPairAggr struct {
 	customSchemeEndpoint dsnConfigPair
 	staticCredentials    dsnConfigPair
 	xray                 dsnConfigPair
+	invalidScheme        dsnConfigPair
 }
 
 var dsnConfigAggr dsnConfigPairAggr
@@ -58,12 +60,16 @@ func Test_parseDSN(t *testing.T) {
 		{dsnConfigAggr.customSchemeEndpoint, false},
 		{dsnConfigAggr.staticCredentials, false},
 		{dsnConfigAggr.xray, false},
+		{dsnConfigAggr.invalidScheme, true},
 	}
 	for _, c := range cases {
 		t.Run(c.dsnConfig.name, func(t *testing.T) {
 			got, err := ParseDSN(c.dsnConfig.dsn)
 			if (err != nil) != c.wantErr {
 				t.Errorf("parseDSN() error = %v, wantErr %v", err, c.wantErr)
+				return
+			}
+			if err != nil {
 				return
 			}
 			if err := eqConfig(got, c.dsnConfig.cfg); err != nil {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -55,6 +56,9 @@ func ParseDSN(dsn string) (*Config, error) {
 }
 
 func parseScheme(scheme string) (string, error) {
+	if !strings.Contains(scheme, constants.DriverName) {
+		return "", errors.New("invalid DSN scheme")
+	}
 	if scheme == constants.DriverName {
 		return "https", nil
 	}

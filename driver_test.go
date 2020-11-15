@@ -13,7 +13,7 @@ func TestDriver_Open(t *testing.T) {
 		want    driver.Conn
 		wantErr bool
 	}{
-		{"ok", &Driver{}, "", &conn{}, false},
+		{"ok", &Driver{}, "awstimestream:///", &conn{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
