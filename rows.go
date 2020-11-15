@@ -16,6 +16,7 @@ import (
 
 var (
 	tsTimeLayout    = "2006-01-02 15:04:05.999999999"
+	tsDateLayout    = "2006-01-02"
 	typeNameUnknown = timestreamquery.ScalarTypeUnknown
 	anyType         = reflect.TypeOf(new(interface{})).Elem()
 	intType         = reflect.TypeOf(int(0))
@@ -168,7 +169,7 @@ func scanScalarColumn(datum *timestreamquery.Datum, columnInfo *timestreamquery.
 		}
 		return parsed, nil
 	case timestreamquery.ScalarTypeDate:
-		parsed, err := parseTime(datum)
+		parsed, err := parseDate(datum)
 		if err != nil {
 			return nil, err
 		}
@@ -194,6 +195,14 @@ func scanScalarColumn(datum *timestreamquery.Datum, columnInfo *timestreamquery.
 	default:
 		return nil, fmt.Errorf("timestream: cannot convert %s", t)
 	}
+}
+
+func parseDate(datum *timestreamquery.Datum) (time.Time, error) {
+	parsed, err := time.ParseInLocation(tsDateLayout, *datum.ScalarValue, time.UTC)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return parsed, nil
 }
 
 func parseTime(datum *timestreamquery.Datum) (time.Time, error) {
