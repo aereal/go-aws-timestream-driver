@@ -14,12 +14,14 @@ var (
 	keyRegion = "region"
 	keyKeyID  = "accessKeyID"
 	keySecret = "secretAccessKey"
+	keyXray   = "enableXray"
 )
 
 type Config struct {
 	Endpoint           string
 	Region             string
 	CredentialProvider credentials.Provider
+	EnableXray         bool
 }
 
 func ParseDSN(dsn string) (*Config, error) {
@@ -35,7 +37,7 @@ func ParseDSN(dsn string) (*Config, error) {
 		return nil, err
 	}
 	qs := parsed.Query()
-	cfg := &Config{CredentialProvider: &credentials.ChainProvider{Providers: providers}}
+	cfg := &Config{CredentialProvider: &credentials.ChainProvider{Providers: providers}, EnableXray: qs.Get(keyXray) == "true"}
 	if region := qs.Get(keyRegion); region != "" {
 		cfg.Region = region
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
+	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
 var (
@@ -46,6 +47,9 @@ func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
 	ses, err := session.NewSessionWithOptions(session.Options{Config: awsCfg})
 	if err != nil {
 		return nil, err
+	}
+	if cfg.EnableXray {
+		ses = xray.AWSSession(ses)
 	}
 	tsq := timestreamquery.New(ses)
 	return &connector{tsq}, nil

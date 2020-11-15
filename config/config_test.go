@@ -28,6 +28,7 @@ func init() {
 		customEndpoint:       dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example:8000/?region=us-east-1", &Config{Endpoint: "https://my.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
 		customSchemeEndpoint: dsnConfigPair{"custom endpoint", "awstimestream+http://insecure.custom.endpoint.example:8000/?region=us-east-1", &Config{Endpoint: "http://insecure.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
 		staticCredentials:    dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{Endpoint: "", Region: "us-east-1", CredentialProvider: staticProvider}},
+		xray:                 dsnConfigPair{"minimal", "awstimestream:///?enableXray=true", &Config{Endpoint: "", Region: "", CredentialProvider: defaultProvider, EnableXray: true}},
 	}
 }
 
@@ -42,6 +43,7 @@ type dsnConfigPairAggr struct {
 	customEndpoint       dsnConfigPair
 	customSchemeEndpoint dsnConfigPair
 	staticCredentials    dsnConfigPair
+	xray                 dsnConfigPair
 }
 
 var dsnConfigAggr dsnConfigPairAggr
@@ -55,6 +57,7 @@ func Test_parseDSN(t *testing.T) {
 		{dsnConfigAggr.customEndpoint, false},
 		{dsnConfigAggr.customSchemeEndpoint, false},
 		{dsnConfigAggr.staticCredentials, false},
+		{dsnConfigAggr.xray, false},
 	}
 	for _, c := range cases {
 		t.Run(c.dsnConfig.name, func(t *testing.T) {
@@ -76,6 +79,9 @@ func eqConfig(actual, expected *Config) error {
 	}
 	if actual.Region != expected.Region {
 		return fmt.Errorf("Region:\n  actual: %s\nexpected: %s", actual.Region, expected.Region)
+	}
+	if actual.EnableXray != expected.EnableXray {
+		return fmt.Errorf("EnableXray:\n  actual: %v\nexpected: %v", actual.EnableXray, expected.EnableXray)
 	}
 	if formatCredProvider(actual.CredentialProvider) != formatCredProvider(expected.CredentialProvider) {
 		return fmt.Errorf("CredentialsProvider:\n  actual: %T\nexpected: %T", actual.CredentialProvider, expected.CredentialProvider)
