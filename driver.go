@@ -5,14 +5,17 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
+	"github.com/aereal/go-aws-timestream-driver/config"
+	"github.com/aereal/go-aws-timestream-driver/constants"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
+	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
 var (
-	DriverName = "awstimestream"
+	DriverName = constants.DriverName
 )
 
 func init() {
@@ -30,7 +33,7 @@ func (d *Driver) Open(dsn string) (driver.Conn, error) {
 }
 
 func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
-	cfg, err := parseDSN(dsn)
+	cfg, err := config.ParseDSN(dsn)
 	if err != nil {
 		return nil, err
 	}
@@ -39,11 +42,14 @@ func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
 		awsCfg.Region = &cfg.Region
 	}
 	if cfg.Endpoint != "" {
-		awsCfg.Endpoint = &cfg.Endpoint
+		awsCfg.Endpoint = aws.String(cfg.Endpoint)
 	}
 	ses, err := session.NewSessionWithOptions(session.Options{Config: awsCfg})
 	if err != nil {
 		return nil, err
+	}
+	if cfg.EnableXray {
+		ses = xray.AWSSession(ses)
 	}
 	tsq := timestreamquery.New(ses)
 	return &connector{tsq}, nil

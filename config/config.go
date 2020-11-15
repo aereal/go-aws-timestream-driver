@@ -1,10 +1,12 @@
-package timestreamdriver
+package config
 
 import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 
+	"github.com/aereal/go-aws-timestream-driver/constants"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/defaults"
 )
@@ -13,17 +15,17 @@ var (
 	keyRegion = "region"
 	keyKeyID  = "accessKeyID"
 	keySecret = "secretAccessKey"
-
-	ErrMissingRegion = errors.New("region parameter required")
+	keyXray   = "enableXray"
 )
 
 type Config struct {
 	Endpoint           string
 	Region             string
 	CredentialProvider credentials.Provider
+	EnableXray         bool
 }
 
-func parseDSN(dsn string) (*Config, error) {
+func ParseDSN(dsn string) (*Config, error) {
 	df := defaults.Get()
 	providers := defaults.CredProviders(df.Config, df.Handlers)
 
@@ -31,13 +33,17 @@ func parseDSN(dsn string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	scheme, err := parseScheme(parsed.Scheme)
+	if err != nil {
+		return nil, err
+	}
 	qs := parsed.Query()
-	cfg := &Config{CredentialProvider: &credentials.ChainProvider{Providers: providers}}
+	cfg := &Config{CredentialProvider: &credentials.ChainProvider{Providers: providers}, EnableXray: qs.Get(keyXray) == "true"}
 	if region := qs.Get(keyRegion); region != "" {
 		cfg.Region = region
 	}
-	if parsed.Hostname() != "" {
-		cfg.Endpoint = fmt.Sprintf("https://%s", parsed.Hostname())
+	if endpointHost := parsed.Host; endpointHost != "" {
+		cfg.Endpoint = fmt.Sprintf("%s://%s", scheme, endpointHost)
 	}
 	accessKeyID, secretAccessKey := qs.Get(keyKeyID), qs.Get(keySecret)
 	if accessKeyID != "" && secretAccessKey != "" {
@@ -47,4 +53,15 @@ func parseDSN(dsn string) (*Config, error) {
 		}}
 	}
 	return cfg, nil
+}
+
+func parseScheme(scheme string) (string, error) {
+	if !strings.Contains(scheme, constants.DriverName) {
+		return "", errors.New("invalid DSN scheme")
+	}
+	if scheme == constants.DriverName {
+		return "https", nil
+	}
+	customScheme := strings.Replace(scheme, constants.DriverName+"+", "", 1)
+	return customScheme, nil
 }

@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"reflect"
 	"strconv"
 	"testing"
@@ -18,7 +19,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
+	"github.com/aws/aws-xray-sdk-go/xray"
+	"github.com/aws/aws-xray-sdk-go/xraylog"
 )
+
+func init() {
+	xray.SetLogger(xraylog.NullLogger)
+}
 
 func TestConn_QueryContext_Scalar(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -127,6 +134,75 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	if !rowsScanned {
 		t.Error("No rows scanned")
 	}
+}
+
+func TestConn_Connector_Xray(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
+			ColumnInfo: []*timestreamquery.ColumnInfo{},
+			Rows:       []*timestreamquery.Row{},
+		})
+	}))
+	defer srv.Close()
+	parsedURL, err := url.Parse(srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dsn := fmt.Sprintf("awstimestream+%s://%s/?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret&enableXray=true", parsedURL.Scheme, parsedURL.Host)
+	cn, err := (&Driver{}).OpenConnector(dsn)
+	if err != nil {
+		t.Fatal(err)
+		return
+	}
+	db := sql.OpenDB(cn)
+	ctx, seg := xray.BeginSegment(context.Background(), "test")
+	defer func() {
+		if seg != nil {
+			seg.Close(nil)
+		}
+	}()
+
+	rows, err := db.QueryContext(ctx, `SELECT 1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	seg.Close(nil)
+	cmpSeg(t, seg, &xray.Segment{
+		AWS: map[string]interface{}{"xray": xray.SDK{Version: "1.1.0", Type: "X-Ray for Go", RuleName: ""}},
+		Subsegments: []json.RawMessage{
+			marshalSegment(&xray.Segment{
+				AWS:  map[string]interface{}{"operation": "Query", "region": "us-east-1", "request_id": "", "retries": 0},
+				HTTP: &xray.HTTPData{Response: &xray.ResponseData{Status: 200, ContentLength: 60}},
+				Subsegments: []json.RawMessage{
+					marshalSegment(&xray.Segment{}),
+					marshalSegment(&xray.Segment{
+						Subsegments: []json.RawMessage{
+							marshalSegment(&xray.Segment{
+								Subsegments: []json.RawMessage{
+									marshalSegment(&xray.Segment{}),
+								},
+							}),
+							marshalSegment(&xray.Segment{}),
+							marshalSegment(&xray.Segment{}),
+						},
+					}),
+					marshalSegment(&xray.Segment{}),
+				},
+			}),
+		},
+	})
+}
+
+func unmarshalSubsegment(seg *xray.Segment) []*xray.Segment {
+	segs := make([]*xray.Segment, len(seg.Subsegments))
+	for i, s := range seg.Subsegments {
+		var v *xray.Segment
+		_ = json.Unmarshal(s, &v)
+		segs[i] = v
+	}
+	return segs
 }
 
 func TestConn_QueryContext_Array(t *testing.T) {
@@ -305,4 +381,46 @@ func arrayValue(values ...string) *timestreamquery.Datum {
 		dm.ArrayValue = append(dm.ArrayValue, &timestreamquery.Datum{ScalarValue: &vv})
 	}
 	return dm
+}
+
+func cmpHTTP(t *testing.T, actual, expected *xray.HTTPData) bool {
+	if (actual == nil) != (expected == nil) {
+		t.Errorf("HTTP\n  actual=%#v\nexpected=%#v", actual, expected)
+		return false
+	}
+	if !reflect.DeepEqual(actual.GetRequest(), expected.GetRequest()) {
+		t.Errorf("HTTP.Request\n  actual=%#v\nexpected=%#v", actual.Request, expected.Request)
+	}
+	if !reflect.DeepEqual(actual.GetResponse(), expected.GetResponse()) {
+		t.Errorf("HTTP.Response\n  actual=%#v\nexpected=%#v", actual.Response, expected.Response)
+	}
+	return true
+}
+
+func cmpSeg(t *testing.T, actual, expected *xray.Segment) {
+	t.Run(fmt.Sprintf("segment:%s", actual.Name), func(t2 *testing.T) {
+		if !reflect.DeepEqual(actual.AWS, expected.AWS) {
+			t2.Errorf("Seg.AWS:\n  actual=%#v\nexpected=%#v", actual.AWS, expected.AWS)
+		}
+		cmpHTTP(t2, actual.GetHTTP(), expected.GetHTTP())
+		actualSubsegmentsLen := len(actual.Subsegments)
+		expectedSubsegmentsLen := len(expected.Subsegments)
+		if actualSubsegmentsLen != expectedSubsegmentsLen {
+			t2.Errorf("Subsegments.len()\n  actual=%d\nexpected=%d", actualSubsegmentsLen, expectedSubsegmentsLen)
+			return
+		}
+		avs := unmarshalSubsegment(actual)
+		evs := unmarshalSubsegment(expected)
+		for i, av := range avs {
+			v := av
+			ev := evs[i]
+			// t2.Logf("id=%q name=%q aws=%#v http=%#v", v.ID, v.Name, v.AWS, v.HTTP)
+			cmpSeg(t2, v, ev)
+		}
+	})
+}
+
+func marshalSegment(seg *xray.Segment) json.RawMessage {
+	ret, _ := json.Marshal(seg)
+	return ret
 }

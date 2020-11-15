@@ -28,13 +28,13 @@ See also Data Source Name format section.
 In URI template normative definition:
 
 ```
-awstimestream://{customEndpointHost}/{?region,accessKeyID,secretAccessKey}
+awstimestream://{customEndpointHost}/{?region,accessKeyID,secretAccessKey,enableXray}
 ```
 
 Example:
 
 ```
-awstimestream://custom-endpoint.example/?region=us-east-1&accessKeyID=my-key
+awstimestream://custom-endpoint.example/?region=us-east-1&accessKeyID=my-key&enableXray=true
 ```
 
 ## License
