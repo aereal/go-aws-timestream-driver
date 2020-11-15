@@ -1,4 +1,4 @@
-package timestreamdriver
+package config
 
 import (
 	"fmt"
@@ -55,7 +55,7 @@ func Test_parseDSN(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.dsnConfig.name, func(t *testing.T) {
-			got, err := parseDSN(c.dsnConfig.dsn)
+			got, err := ParseDSN(c.dsnConfig.dsn)
 			if (err != nil) != c.wantErr {
 				t.Errorf("parseDSN() error = %v, wantErr %v", err, c.wantErr)
 				return

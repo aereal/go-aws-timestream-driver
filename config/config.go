@@ -1,7 +1,6 @@
-package timestreamdriver
+package config
 
 import (
-	"errors"
 	"net/url"
 
 	"github.com/aws/aws-sdk-go/aws/credentials"
@@ -12,8 +11,6 @@ var (
 	keyRegion = "region"
 	keyKeyID  = "accessKeyID"
 	keySecret = "secretAccessKey"
-
-	ErrMissingRegion = errors.New("region parameter required")
 )
 
 type Config struct {
@@ -22,7 +19,7 @@ type Config struct {
 	CredentialProvider credentials.Provider
 }
 
-func parseDSN(dsn string) (*Config, error) {
+func ParseDSN(dsn string) (*Config, error) {
 	df := defaults.Get()
 	providers := defaults.CredProviders(df.Config, df.Handlers)
 

@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/aereal/go-aws-timestream-driver/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -31,7 +32,7 @@ func (d *Driver) Open(dsn string) (driver.Conn, error) {
 }
 
 func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
-	cfg, err := parseDSN(dsn)
+	cfg, err := config.ParseDSN(dsn)
 	if err != nil {
 		return nil, err
 	}
