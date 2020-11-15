@@ -228,6 +228,12 @@ func TestConn_QueryContext_Array(t *testing.T) {
 				arrayColumn("ints", timestreamquery.ScalarTypeInteger),
 				arrayColumn("doubles", timestreamquery.ScalarTypeDouble),
 				arrayColumn("bools", timestreamquery.ScalarTypeBoolean),
+				{
+					Name: aws.String("nested"),
+					Type: &timestreamquery.Type{
+						ArrayColumnInfo: arrayColumn("", timestreamquery.ScalarTypeInteger),
+					},
+				},
 			},
 			Rows: []*timestreamquery.Row{
 				{
@@ -236,6 +242,10 @@ func TestConn_QueryContext_Array(t *testing.T) {
 						arrayValue("1", "2"),
 						arrayValue("1.0", "2.0"),
 						arrayValue("true", "false"),
+						{ArrayValue: []*timestreamquery.Datum{
+							arrayValue("1", "2"),
+							arrayValue("3", "4"),
+						}},
 					},
 				},
 			},
@@ -261,7 +271,7 @@ func TestConn_QueryContext_Array(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	expectedColumns := []string{"strs", "ints", "doubles", "bools"}
+	expectedColumns := []string{"strs", "ints", "doubles", "bools", "nested"}
 	if !reflect.DeepEqual(cols, expectedColumns) {
 		t.Errorf("Rows.Columns(): expected=%#v got=%#v", expectedColumns, cols)
 	}
@@ -271,8 +281,9 @@ func TestConn_QueryContext_Array(t *testing.T) {
 			c2 []int
 			c3 []float64
 			c4 []bool
+			c5 AnyArray
 		)
-		if err := rows.Scan(Array(&c1), Array(&c2), Array(&c3), Array(&c4)); err != nil {
+		if err := rows.Scan(Array(&c1), Array(&c2), Array(&c3), Array(&c4), &c5); err != nil {
 			t.Fatal(err)
 		}
 		expectedStrs := []string{"abc", "def"}
@@ -290,6 +301,10 @@ func TestConn_QueryContext_Array(t *testing.T) {
 		expectedBools := []bool{true, false}
 		if !reflect.DeepEqual(c4, expectedBools) {
 			t.Errorf("Rows.Scan(): expected=%#v got=%#v", expectedBools, c4)
+		}
+		expectedNested := []interface{}{[]interface{}{1, 2}, []interface{}{3, 4}}
+		if !reflect.DeepEqual(c5.E, expectedNested) {
+			t.Errorf("Rows.Scan():\n  actual=%#v (%d)\nexpected=%#v (%d)", c5.E, len(c5.E.([]interface{})), expectedNested, len(expectedNested))
 		}
 	}
 }
@@ -381,12 +396,15 @@ func scalarColumn(name, typ string) *timestreamquery.ColumnInfo {
 }
 
 func arrayColumn(name, typ string) *timestreamquery.ColumnInfo {
-	return &timestreamquery.ColumnInfo{
-		Name: &name,
+	ci := &timestreamquery.ColumnInfo{
 		Type: &timestreamquery.Type{
 			ArrayColumnInfo: &timestreamquery.ColumnInfo{
 				Type: &timestreamquery.Type{
 					ScalarType: &typ}}}}
+	if name != "" {
+		ci.Name = &name
+	}
+	return ci
 }
 
 func arrayValue(values ...string) *timestreamquery.Datum {
