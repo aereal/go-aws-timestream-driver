@@ -32,7 +32,7 @@ func ParseDSN(dsn string) (*Config, error) {
 	if region := qs.Get(keyRegion); region != "" {
 		cfg.Region = region
 	}
-	if endpointHost := parsed.Hostname(); endpointHost != "" {
+	if endpointHost := parsed.Host; endpointHost != "" {
 		cfg.EndpointHostname = endpointHost
 	}
 	accessKeyID, secretAccessKey := qs.Get(keyKeyID), qs.Get(keySecret)

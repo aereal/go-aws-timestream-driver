@@ -25,7 +25,7 @@ func init() {
 	}
 	dsnConfigAggr = dsnConfigPairAggr{
 		minimal:           dsnConfigPair{"minimal", "awstimestream:///", &Config{EndpointHostname: "", Region: "", CredentialProvider: defaultProvider}},
-		customEndpoint:    dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example/?region=us-east-1", &Config{EndpointHostname: "my.custom.endpoint.example", Region: "us-east-1", CredentialProvider: defaultProvider}},
+		customEndpoint:    dsnConfigPair{"custom endpoint", "awstimestream://my.custom.endpoint.example:8000/?region=us-east-1", &Config{EndpointHostname: "my.custom.endpoint.example:8000", Region: "us-east-1", CredentialProvider: defaultProvider}},
 		staticCredentials: dsnConfigPair{"static credentials", "awstimestream:///?region=us-east-1&accessKeyID=my-id&secretAccessKey=my-secret", &Config{EndpointHostname: "", Region: "us-east-1", CredentialProvider: staticProvider}},
 	}
 }
