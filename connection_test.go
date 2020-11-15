@@ -184,7 +184,7 @@ func TestConn_Connector_Xray(t *testing.T) {
 	}
 	defer rows.Close()
 	seg.Close(nil)
-	cmpSeg(t, seg, &xray.Segment{
+	cmpSeg(t, xray.GetSegment(ctx), &xray.Segment{
 		AWS: map[string]interface{}{"xray": xray.SDK{Version: "1.1.0", Type: "X-Ray for Go", RuleName: ""}},
 		Subsegments: []json.RawMessage{
 			marshalSegment(&xray.Segment{
@@ -429,7 +429,6 @@ func cmpSeg(t *testing.T, actual, expected *xray.Segment) {
 		for i, av := range avs {
 			v := av
 			ev := evs[i]
-			// t2.Logf("id=%q name=%q aws=%#v http=%#v", v.ID, v.Name, v.AWS, v.HTTP)
 			cmpSeg(t2, v, ev)
 		}
 	})
