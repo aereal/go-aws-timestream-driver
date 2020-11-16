@@ -37,7 +37,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-${{ matrix.go_version }}
       - name: test
-        run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
+        run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
       - uses: codecov/codecov-action@v1
         if: matrix.os == 'ubuntu-latest' && matrix.go_version == '1.15.x'
   release:

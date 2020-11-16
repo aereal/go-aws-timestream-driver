@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,13 +20,10 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
+	"github.com/aws/aws-xray-sdk-go/strategy/sampling"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 )
-
-func init() {
-	xray.SetLogger(xraylog.NullLogger)
-}
 
 func TestConn_QueryContext_Scalar(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +149,21 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	}
 }
 
+type testLogger struct {
+	t  *testing.T
+	mu sync.Mutex
+}
+
+var _ xraylog.Logger = &testLogger{}
+
+func (l *testLogger) Log(level xraylog.LogLevel, msg fmt.Stringer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.t.Logf("[%s][%s] %s", time.Now().Format(time.RFC3339Nano), level, msg)
+}
+
 func TestConn_Connector_Xray(t *testing.T) {
+	xray.SetLogger(&testLogger{t: t})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
 			ColumnInfo: []*timestreamquery.ColumnInfo{},
@@ -171,10 +183,18 @@ func TestConn_Connector_Xray(t *testing.T) {
 		return
 	}
 	db := sql.OpenDB(cn)
-	ctx, seg := xray.BeginSegment(context.Background(), "test")
+	ctx, err := xray.ContextWithConfig(context.Background(), xray.Config{SamplingStrategy: alwaysSample(0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, seg := xray.BeginSegment(ctx, "test")
 	defer func() {
+		t.Logf("enter defer")
 		if seg != nil {
-			seg.Close(nil)
+			t.Logf("segment: ContextDone=%v Dummy=%v Emitted=%v InProgress=%v", seg.ContextDone, seg.Dummy, seg.Emitted, seg.InProgress)
+			if seg.Emitted {
+				seg.Close(nil)
+			}
 		}
 	}()
 
@@ -183,8 +203,32 @@ func TestConn_Connector_Xray(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer rows.Close()
+	t.Logf("[%s] try to close segment", time.Now().Format(time.RFC3339Nano))
 	seg.Close(nil)
-	cmpSeg(t, seg, &xray.Segment{
+	t.Logf("[%s] done to close segment", time.Now().Format(time.RFC3339Nano))
+
+	softDeadline := time.Now().Add(time.Second * 30)
+	if hardDeadline, ok := deadlineOf(t); ok && softDeadline.After(hardDeadline) {
+		softDeadline = hardDeadline
+	}
+	for {
+		s := xray.GetSegment(ctx)
+		if s == nil {
+			t.Errorf("No segment emitted")
+			return
+		}
+		if s.Emitted {
+			break
+		}
+		if time.Now().After(softDeadline) {
+			t.Errorf("No segment emitted after deadline exceeded")
+			return
+		}
+		t.Logf("[%s] wait for segment to be emitted; segment: ContextDone=%v Dummy=%v Emitted=%v InProgress=%v", time.Now().Format(time.RFC3339Nano), seg.ContextDone, seg.Dummy, seg.Emitted, seg.InProgress)
+		time.Sleep(time.Second)
+	}
+
+	cmpSeg(t, xray.GetSegment(ctx), &xray.Segment{
 		AWS: map[string]interface{}{"xray": xray.SDK{Version: "1.1.0", Type: "X-Ray for Go", RuleName: ""}},
 		Subsegments: []json.RawMessage{
 			marshalSegment(&xray.Segment{
@@ -429,7 +473,6 @@ func cmpSeg(t *testing.T, actual, expected *xray.Segment) {
 		for i, av := range avs {
 			v := av
 			ev := evs[i]
-			// t2.Logf("id=%q name=%q aws=%#v http=%#v", v.ID, v.Name, v.AWS, v.HTTP)
 			cmpSeg(t2, v, ev)
 		}
 	})
@@ -438,4 +481,12 @@ func cmpSeg(t *testing.T, actual, expected *xray.Segment) {
 func marshalSegment(seg *xray.Segment) json.RawMessage {
 	ret, _ := json.Marshal(seg)
 	return ret
+}
+
+type alwaysSample int
+
+var _ sampling.Strategy = alwaysSample(0)
+
+func (alwaysSample) ShouldTrace(r *sampling.Request) *sampling.Decision {
+	return &sampling.Decision{Sample: true}
 }
