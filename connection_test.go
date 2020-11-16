@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,10 +23,6 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 )
-
-func init() {
-	xray.SetLogger(xraylog.NullLogger)
-}
 
 func TestConn_QueryContext_Scalar(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -151,7 +148,21 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 	}
 }
 
+type testLogger struct {
+	t  *testing.T
+	mu sync.Mutex
+}
+
+var _ xraylog.Logger = &testLogger{}
+
+func (l *testLogger) Log(level xraylog.LogLevel, msg fmt.Stringer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.t.Logf("[%s][%s] %s", time.Now().Format(time.RFC3339Nano), level, msg)
+}
+
 func TestConn_Connector_Xray(t *testing.T) {
+	xray.SetLogger(&testLogger{t: t})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
 			ColumnInfo: []*timestreamquery.ColumnInfo{},
