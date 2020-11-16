@@ -173,7 +173,7 @@ func TestConn_Connector_Xray(t *testing.T) {
 	db := sql.OpenDB(cn)
 	ctx, seg := xray.BeginSegment(context.Background(), "test")
 	defer func() {
-		if seg != nil {
+		if seg != nil && !seg.InProgress {
 			seg.Close(nil)
 		}
 	}()
@@ -184,6 +184,27 @@ func TestConn_Connector_Xray(t *testing.T) {
 	}
 	defer rows.Close()
 	seg.Close(nil)
+
+	softDeadline := time.Now().Add(time.Second * 30)
+	if hardDeadline, ok := deadlineOf(t); ok && softDeadline.After(hardDeadline) {
+		softDeadline = hardDeadline
+	}
+	for {
+		s := xray.GetSegment(ctx)
+		if s == nil {
+			t.Errorf("No segment emitted")
+			return
+		}
+		if s.Emitted {
+			break
+		}
+		if time.Now().After(softDeadline) {
+			t.Errorf("No segment emitted after deadline exceeded")
+			return
+		}
+		time.Sleep(time.Millisecond * 50)
+	}
+
 	cmpSeg(t, xray.GetSegment(ctx), &xray.Segment{
 		AWS: map[string]interface{}{"xray": xray.SDK{Version: "1.1.0", Type: "X-Ray for Go", RuleName: ""}},
 		Subsegments: []json.RawMessage{
