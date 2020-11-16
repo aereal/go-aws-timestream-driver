@@ -303,6 +303,11 @@ func TestConn_QueryContext_Array(t *testing.T) {
 			t.Errorf("Rows.Scan(): expected=%#v got=%#v", expectedBools, c4)
 		}
 		expectedNested := []interface{}{[]interface{}{1, 2}, []interface{}{3, 4}}
+		vt1 := reflect.ValueOf(expectedNested)
+		vt2 := reflect.ValueOf(c5.E)
+		if vt1.Type() != vt2.Type() {
+			t.Errorf("c5\n  actual.type=%#v\nexpected.type=%#v", vt2, vt1)
+		}
 		if !reflect.DeepEqual(c5.E, expectedNested) {
 			t.Errorf("Rows.Scan():\n  actual=%#v (%d)\nexpected=%#v (%d)", c5.E, len(c5.E.([]interface{})), expectedNested, len(expectedNested))
 		}
