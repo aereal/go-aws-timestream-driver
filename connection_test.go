@@ -184,8 +184,12 @@ func TestConn_Connector_Xray(t *testing.T) {
 	db := sql.OpenDB(cn)
 	ctx, seg := xray.BeginSegment(context.Background(), "test")
 	defer func() {
-		if seg != nil && !seg.InProgress {
-			seg.Close(nil)
+		t.Logf("enter defer")
+		if seg != nil {
+			t.Logf("segment: ContextDone=%v Dummy=%v Emitted=%v InProgress=%v", seg.ContextDone, seg.Dummy, seg.Emitted, seg.InProgress)
+			if seg.InProgress {
+				seg.Close(nil)
+			}
 		}
 	}()
 
@@ -194,7 +198,9 @@ func TestConn_Connector_Xray(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer rows.Close()
+	t.Logf("[%s] try to close segment", time.Now().Format(time.RFC3339Nano))
 	seg.Close(nil)
+	t.Logf("[%s] done to close segment", time.Now().Format(time.RFC3339Nano))
 
 	softDeadline := time.Now().Add(time.Second * 30)
 	if hardDeadline, ok := deadlineOf(t); ok && softDeadline.After(hardDeadline) {
@@ -213,7 +219,8 @@ func TestConn_Connector_Xray(t *testing.T) {
 			t.Errorf("No segment emitted after deadline exceeded")
 			return
 		}
-		time.Sleep(time.Millisecond * 50)
+		t.Logf("[%s] wait for segment to be emitted; segment: ContextDone=%v Dummy=%v Emitted=%v InProgress=%v", time.Now().Format(time.RFC3339Nano), seg.ContextDone, seg.Dummy, seg.Emitted, seg.InProgress)
+		time.Sleep(time.Second)
 	}
 
 	cmpSeg(t, xray.GetSegment(ctx), &xray.Segment{
