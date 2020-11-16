@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
+	"github.com/aws/aws-xray-sdk-go/strategy/sampling"
 	"github.com/aws/aws-xray-sdk-go/xray"
 	"github.com/aws/aws-xray-sdk-go/xraylog"
 )
@@ -182,7 +183,11 @@ func TestConn_Connector_Xray(t *testing.T) {
 		return
 	}
 	db := sql.OpenDB(cn)
-	ctx, seg := xray.BeginSegment(context.Background(), "test")
+	ctx, err := xray.ContextWithConfig(context.Background(), xray.Config{SamplingStrategy: alwaysSample(0)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, seg := xray.BeginSegment(ctx, "test")
 	defer func() {
 		t.Logf("enter defer")
 		if seg != nil {
@@ -476,4 +481,12 @@ func cmpSeg(t *testing.T, actual, expected *xray.Segment) {
 func marshalSegment(seg *xray.Segment) json.RawMessage {
 	ret, _ := json.Marshal(seg)
 	return ret
+}
+
+type alwaysSample int
+
+var _ sampling.Strategy = alwaysSample(0)
+
+func (alwaysSample) ShouldTrace(r *sampling.Request) *sampling.Decision {
+	return &sampling.Decision{Sample: true}
 }
