@@ -187,7 +187,7 @@ func TestConn_Connector_Xray(t *testing.T) {
 		t.Logf("enter defer")
 		if seg != nil {
 			t.Logf("segment: ContextDone=%v Dummy=%v Emitted=%v InProgress=%v", seg.ContextDone, seg.Dummy, seg.Emitted, seg.InProgress)
-			if seg.InProgress {
+			if seg.Emitted {
 				seg.Close(nil)
 			}
 		}
