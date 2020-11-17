@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -163,6 +164,11 @@ func (l *testLogger) Log(level xraylog.LogLevel, msg fmt.Stringer) {
 }
 
 func TestConn_Connector_Xray(t *testing.T) {
+	withXrayTest := os.Getenv("WITH_XRAY_TEST")
+	t.Logf("WITH_XRAY_TEST=%q", withXrayTest)
+	if withXrayTest != "true" {
+		t.SkipNow()
+	}
 	xray.SetLogger(&testLogger{t: t})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
@@ -361,6 +367,7 @@ func Test_interpolatesQuery(t *testing.T) {
 		{"int parameter", args{"SELECT name FROM db1.table1 WHERE age = ?", []driver.NamedValue{{Ordinal: 1, Value: int64(20)}}}, "SELECT name FROM db1.table1 WHERE age = 20", false},
 		{"string parameter", args{"SELECT age FROM db1.table1 WHERE name = ?", []driver.NamedValue{{Ordinal: 1, Value: "yuno"}}}, "SELECT age FROM db1.table1 WHERE name = 'yuno'", false},
 		{"valuer parameter", args{"SELECT age FROM db1.table1 WHERE name = ?", []driver.NamedValue{{Ordinal: 1, Value: &yuno{}}}}, "SELECT age FROM db1.table1 WHERE name = 'yuno'", false},
+		{"bare parameter", args{"SELECT * FROM db1.table1 WHERE last_login > ago(?)", []driver.NamedValue{{Ordinal: 1, Value: BareStringValue{"7d"}}}}, "SELECT * FROM db1.table1 WHERE last_login > ago(7d)", false},
 
 		{"less parameters", args{"SELECT name FROM db1.table1 WHERE age = ?", []driver.NamedValue{}}, "", true},
 		{"unhandleable parameters", args{"SELECT name FROM db1.table1 WHERE age = ?", []driver.NamedValue{{Ordinal: 1, Value: []string{"hi"}}}}, "", true},

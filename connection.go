@@ -74,6 +74,10 @@ func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
 			}
 			nv := args[placeholderPos]
 			val := nv.Value
+			shouldQuote := true
+			if _, ok := val.(bareValue); ok {
+				shouldQuote = false
+			}
 			if valuer, ok := val.(driver.Valuer); ok {
 				var err error
 				val, err = valuer.Value()
@@ -89,9 +93,17 @@ func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
 			case bool:
 				b.WriteString(fmt.Sprintf("%v", val))
 			case []byte:
-				b.WriteString(fmt.Sprintf("'%s'", val))
+				b.WriteByte('\'')
+				b.Write(val)
+				b.WriteByte('\'')
 			case string:
-				b.WriteString(fmt.Sprintf("'%s'", val))
+				if shouldQuote {
+					b.WriteByte('\'')
+					b.WriteString(val)
+					b.WriteByte('\'')
+				} else {
+					b.WriteString(val)
+				}
 			case time.Time:
 				b.WriteString(fmt.Sprintf("'%s'", val.Format(tsTimeLayout)))
 			default:
