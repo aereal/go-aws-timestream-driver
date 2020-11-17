@@ -34,8 +34,8 @@ func (conn) Begin() (driver.Tx, error) {
 	return nil, ErrBeginNotSupported
 }
 
-func (conn) Prepare(query string) (driver.Stmt, error) {
-	return nil, ErrPrepareNotSupported
+func (c *conn) Prepare(query string) (driver.Stmt, error) {
+	return &stmt{query: query, cn: c}, nil
 }
 
 func (conn) Close() error {
