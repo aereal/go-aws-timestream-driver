@@ -17,6 +17,7 @@ jobs:
       - name: lint
         uses: reviewdog/action-golangci-lint@v1
   test:
+    name: Test Go=${{ matrix.go_version }} os=${{ matrix.os }} with xray=${{ matrix.with_xray }}
     strategy:
       matrix:
         go_version:
@@ -24,6 +25,7 @@ jobs:
           - 1.15.x
         os:
           - ubuntu-latest
+        with_xray: [true, false]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
@@ -38,8 +40,10 @@ jobs:
             ${{ runner.os }}-go-${{ matrix.go_version }}
       - name: test
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+        env:
+          WITH_XRAY_TEST: ${{ matrix.with_xray }}
       - uses: codecov/codecov-action@v1
-        if: matrix.os == 'ubuntu-latest' && matrix.go_version == '1.15.x'
+        if: matrix.os == 'ubuntu-latest' && matrix.go_version == '1.15.x' && !matrix.with_xray
   release:
     if: github.ref == 'refs/heads/main'
     needs:

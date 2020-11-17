@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"sync"
@@ -163,6 +164,11 @@ func (l *testLogger) Log(level xraylog.LogLevel, msg fmt.Stringer) {
 }
 
 func TestConn_Connector_Xray(t *testing.T) {
+	withXrayTest := os.Getenv("WITH_XRAY_TEST")
+	t.Logf("WITH_XRAY_TEST=%q", withXrayTest)
+	if withXrayTest != "true" {
+		t.SkipNow()
+	}
 	xray.SetLogger(&testLogger{t: t})
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
