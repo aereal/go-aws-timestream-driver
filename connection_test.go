@@ -41,6 +41,7 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 				scalarColumn("time", timestreamquery.ScalarTypeTime),
 				scalarColumn("dt", timestreamquery.ScalarTypeDate),
 				scalarColumn("ts", timestreamquery.ScalarTypeTimestamp),
+				scalarColumn("nullableInt", timestreamquery.ScalarTypeInteger),
 			},
 			Rows: []*timestreamquery.Row{{
 				Data: []*timestreamquery.Datum{
@@ -55,6 +56,7 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 					{ScalarValue: aws.String("2010-01-01 12:34:56.000000000")},
 					{ScalarValue: aws.String("2010-01-01")},
 					{ScalarValue: aws.String("2010-01-01 12:34:56.000000000")},
+					{NullValue: aws.Bool(true)},
 				},
 			}},
 		})
@@ -87,6 +89,7 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 		{name: "time", databaseTypeName: timestreamquery.ScalarTypeTime, scanType: reflect.TypeOf(time.Time{})},
 		{name: "dt", databaseTypeName: timestreamquery.ScalarTypeDate, scanType: reflect.TypeOf(time.Time{})},
 		{name: "ts", databaseTypeName: timestreamquery.ScalarTypeTimestamp, scanType: reflect.TypeOf(time.Time{})},
+		{name: "nullableInt", databaseTypeName: timestreamquery.ScalarTypeInteger, scanType: reflect.TypeOf(int(0))},
 	}
 	if cts, err := rows.ColumnTypes(); err == nil {
 		expectedColumns.compare(t, cts)
@@ -108,8 +111,9 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 			c9  time.Time
 			c10 time.Time
 			c11 time.Time
+			c12 *int
 		)
-		if err := rows.Scan(&c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11); err != nil {
+		if err := rows.Scan(&c1, &c2, &c3, &c4, &c5, &c6, &c7, &c8, &c9, &c10, &c11, &c12); err != nil {
 			t.Fatal(err)
 		}
 		if c1 != 1 {
@@ -143,6 +147,9 @@ func TestConn_QueryContext_Scalar(t *testing.T) {
 		}
 		if !expectedTime.Equal(c11) {
 			t.Errorf("c11: expected=%s got=%s", expectedDate, c11)
+		}
+		if c12 != nil {
+			t.Errorf("c12: expected=nil got=%#v", c12)
 		}
 	}
 	if !rowsScanned {

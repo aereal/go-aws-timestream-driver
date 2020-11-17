@@ -120,6 +120,9 @@ func (r *rows) Next(dest []driver.Value) error {
 }
 
 func scanColumn(datum *timestreamquery.Datum, columnInfo *timestreamquery.ColumnInfo) (driver.Value, error) {
+	if datum.NullValue != nil && *datum.NullValue {
+		return nil, nil
+	}
 	if columnInfo.Type.ArrayColumnInfo != nil {
 		return scanArrayColumn(datum, columnInfo)
 	}
