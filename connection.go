@@ -89,9 +89,13 @@ func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
 			case bool:
 				b.WriteString(fmt.Sprintf("%v", val))
 			case []byte:
-				b.WriteString(fmt.Sprintf("'%s'", val))
+				b.WriteByte('\'')
+				b.Write(val)
+				b.WriteByte('\'')
 			case string:
-				b.WriteString(fmt.Sprintf("'%s'", val))
+				b.WriteByte('\'')
+				b.WriteString(val)
+				b.WriteByte('\'')
 			case time.Time:
 				b.WriteString(fmt.Sprintf("'%s'", val.Format(tsTimeLayout)))
 			default:
