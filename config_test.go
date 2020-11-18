@@ -1,4 +1,4 @@
-package config
+package timestreamdriver
 
 import (
 	"fmt"

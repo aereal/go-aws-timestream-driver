@@ -1,4 +1,4 @@
-package config
+package timestreamdriver
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/aereal/go-aws-timestream-driver/constants"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/defaults"
 )
@@ -56,12 +55,12 @@ func ParseDSN(dsn string) (*Config, error) {
 }
 
 func parseScheme(scheme string) (string, error) {
-	if !strings.Contains(scheme, constants.DriverName) {
+	if !strings.Contains(scheme, DriverName) {
 		return "", errors.New("invalid DSN scheme")
 	}
-	if scheme == constants.DriverName {
+	if scheme == DriverName {
 		return "https", nil
 	}
-	customScheme := strings.Replace(scheme, constants.DriverName+"+", "", 1)
+	customScheme := strings.Replace(scheme, DriverName+"+", "", 1)
 	return customScheme, nil
 }
