@@ -12,7 +12,7 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
-var (
+const (
 	DriverName = "awstimestream"
 )
 
