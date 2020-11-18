@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
@@ -18,7 +19,8 @@ var (
 	// It may be returned by Rows.QueryContext().
 	ErrTooFewParameters = errors.New("too few parameters passed")
 
-	placeholder = '?'
+	placeholder         = '?'
+	namedParamDelimiter = "$"
 )
 
 type conn struct {
@@ -65,6 +67,11 @@ func (c *conn) queryContext(ctx context.Context, query string, args []driver.Nam
 }
 
 func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
+	namedParamExpander, err := buildNamedParamExpander(args)
+	if err != nil {
+		return "", err
+	}
+
 	b := new(bytes.Buffer)
 	placeholderPos := 0
 	for _, v := range query {
@@ -80,7 +87,7 @@ func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
 			b.WriteRune(v)
 		}
 	}
-	return b.String(), nil
+	return namedParamExpander.Replace(b.String()), nil
 }
 
 func formatParam(buf *bytes.Buffer, val driver.Value) error {
@@ -120,4 +127,24 @@ func formatParam(buf *bytes.Buffer, val driver.Value) error {
 		return fmt.Errorf("unknown parameter: %#v (%T)", val, val)
 	}
 	return nil
+}
+
+func buildNamedParamExpander(nvs []driver.NamedValue) (*strings.Replacer, error) {
+	args := []string{}
+	seen := map[string]bool{}
+	for _, nv := range nvs {
+		if nv.Name == "" {
+			continue
+		}
+		if seen[nv.Name] {
+			return nil, fmt.Errorf("named parameter (%q) appears multiple times", nv.Name)
+		}
+		seen[nv.Name] = true
+		buf := new(bytes.Buffer)
+		if err := formatParam(buf, nv.Value); err != nil {
+			return nil, fmt.Errorf("cannot format parameter: %w", err)
+		}
+		args = append(args, namedParamDelimiter+nv.Name+namedParamDelimiter, buf.String())
+	}
+	return strings.NewReplacer(args...), nil
 }
