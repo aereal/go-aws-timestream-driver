@@ -14,9 +14,7 @@ import (
 )
 
 var (
-	ErrPrepareNotSupported = errors.New("Prepare() not supported")
-	ErrBeginNotSupported   = errors.New("Begin() not supported")
-	ErrTooFewParameters    = errors.New("too few parameters passed")
+	ErrTooFewParameters = errors.New("too few parameters passed")
 
 	placeholder = '?'
 )
@@ -31,7 +29,7 @@ var _ interface {
 } = &conn{}
 
 func (conn) Begin() (driver.Tx, error) {
-	return nil, ErrBeginNotSupported
+	return nil, driver.ErrSkip
 }
 
 func (c *conn) Prepare(query string) (driver.Stmt, error) {
