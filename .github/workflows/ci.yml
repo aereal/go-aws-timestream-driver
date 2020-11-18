@@ -18,6 +18,7 @@ jobs:
         uses: reviewdog/action-golangci-lint@v1
   test:
     name: Test Go=${{ matrix.go_version }} os=${{ matrix.os }} with xray=${{ matrix.with_xray }}
+    continue-on-error: ${{ matrix.with_xray }}
     strategy:
       matrix:
         go_version:
