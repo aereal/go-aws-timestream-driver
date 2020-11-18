@@ -14,6 +14,8 @@ import (
 )
 
 var (
+	// ErrTooFewParameters is an error indicates number of passed parameters less than query's placeholders.
+	// It may be returned by Rows.QueryContext().
 	ErrTooFewParameters = errors.New("too few parameters passed")
 
 	placeholder = '?'

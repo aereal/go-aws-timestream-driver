@@ -12,6 +12,7 @@ type customType = interface {
 	// TODO: driver.Valuer
 }
 
+// Array converts `x` into corresponding concrete scannable types.
 func Array(x interface{}) customType {
 	switch x := x.(type) {
 	case []string:
@@ -35,6 +36,7 @@ func Array(x interface{}) customType {
 	return nil // TODO
 }
 
+// StringArray is a wrapper type of []string that scannable by database/sql
 type StringArray []string
 
 var _ customType = &StringArray{}
@@ -57,6 +59,7 @@ func (a *StringArray) Scan(src interface{}) error {
 	}
 }
 
+// IntegerArray is a wrapper type of []int that scannable by database/sql
 type IntegerArray []int
 
 var _ customType = &IntegerArray{}
@@ -83,6 +86,7 @@ func (a *IntegerArray) Scan(src interface{}) error {
 	}
 }
 
+// FloatArray is a wrapper type of []float64 that scannable by database/sql
 type FloatArray []float64
 
 var _ customType = &FloatArray{}
@@ -109,6 +113,7 @@ func (a *FloatArray) Scan(src interface{}) error {
 	}
 }
 
+// BooleanArray is a wrapper type of []bool that scannable by database/sql
 type BooleanArray []bool
 
 var _ customType = &BooleanArray{}

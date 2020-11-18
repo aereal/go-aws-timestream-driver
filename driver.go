@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	// DriverName is name of the driver that this package provides
 	DriverName = "awstimestream"
 )
 
