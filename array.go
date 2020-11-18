@@ -7,12 +7,12 @@ import (
 	"strconv"
 )
 
-type CustomType interface {
+type customType interface {
 	sql.Scanner
 	// TODO: driver.Valuer
 }
 
-func Array(x interface{}) CustomType {
+func Array(x interface{}) customType {
 	switch x := x.(type) {
 	case []string:
 		return (*StringArray)(&x)
@@ -37,7 +37,7 @@ func Array(x interface{}) CustomType {
 
 type StringArray []string
 
-var _ CustomType = &StringArray{}
+var _ customType = &StringArray{}
 
 func (a *StringArray) Scan(src interface{}) error {
 	switch src := src.(type) {
@@ -59,7 +59,7 @@ func (a *StringArray) Scan(src interface{}) error {
 
 type IntegerArray []int
 
-var _ CustomType = &IntegerArray{}
+var _ customType = &IntegerArray{}
 
 func (a *IntegerArray) Scan(src interface{}) error {
 	switch src := src.(type) {
@@ -85,7 +85,7 @@ func (a *IntegerArray) Scan(src interface{}) error {
 
 type FloatArray []float64
 
-var _ CustomType = &FloatArray{}
+var _ customType = &FloatArray{}
 
 func (a *FloatArray) Scan(src interface{}) error {
 	switch src := src.(type) {
@@ -111,7 +111,7 @@ func (a *FloatArray) Scan(src interface{}) error {
 
 type BooleanArray []bool
 
-var _ CustomType = &BooleanArray{}
+var _ customType = &BooleanArray{}
 
 func (a *BooleanArray) Scan(src interface{}) error {
 	switch src := src.(type) {

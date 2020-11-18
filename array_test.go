@@ -9,7 +9,7 @@ func TestArray(t *testing.T) {
 	cases := []struct {
 		name string
 		arg  interface{}
-		want CustomType
+		want customType
 	}{
 		{"strings", []string{"a", "b"}, &StringArray{"a", "b"}},
 		{"integers", []int{1, 2}, &IntegerArray{1, 2}},
