@@ -72,42 +72,8 @@ func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
 			if len(args) < placeholderPos+1 {
 				return "", ErrTooFewParameters
 			}
-			nv := args[placeholderPos]
-			val := nv.Value
-			shouldQuote := true
-			if _, ok := val.(bareValue); ok {
-				shouldQuote = false
-			}
-			if valuer, ok := val.(driver.Valuer); ok {
-				var err error
-				val, err = valuer.Value()
-				if err != nil {
-					return "", err
-				}
-			}
-			switch val := val.(type) {
-			case int64:
-				b.WriteString(strconv.FormatInt(val, 10))
-			case float64:
-				b.WriteString(strconv.FormatFloat(val, 'f', -1, 64))
-			case bool:
-				b.WriteString(fmt.Sprintf("%v", val))
-			case []byte:
-				b.WriteByte('\'')
-				b.Write(val)
-				b.WriteByte('\'')
-			case string:
-				if shouldQuote {
-					b.WriteByte('\'')
-					b.WriteString(val)
-					b.WriteByte('\'')
-				} else {
-					b.WriteString(val)
-				}
-			case time.Time:
-				b.WriteString(fmt.Sprintf("'%s'", val.Format(tsTimeLayout)))
-			default:
-				return "", fmt.Errorf("unknown parameter: %#v (%T)", val, val)
+			if err := formatParam(b, args[placeholderPos].Value); err != nil {
+				return "", err
 			}
 			placeholderPos++
 		} else {
@@ -115,4 +81,43 @@ func interpolatesQuery(query string, args []driver.NamedValue) (string, error) {
 		}
 	}
 	return b.String(), nil
+}
+
+func formatParam(buf *bytes.Buffer, val driver.Value) error {
+	shouldQuote := true
+	if _, ok := val.(bareValue); ok {
+		shouldQuote = false
+	}
+	if valuer, ok := val.(driver.Valuer); ok {
+		var err error
+		val, err = valuer.Value()
+		if err != nil {
+			return err
+		}
+	}
+	switch val := val.(type) {
+	case int64:
+		buf.WriteString(strconv.FormatInt(val, 10))
+	case float64:
+		buf.WriteString(strconv.FormatFloat(val, 'f', -1, 64))
+	case bool:
+		buf.WriteString(fmt.Sprintf("%v", val))
+	case []byte:
+		buf.WriteByte('\'')
+		buf.Write(val)
+		buf.WriteByte('\'')
+	case string:
+		if shouldQuote {
+			buf.WriteByte('\'')
+			buf.WriteString(val)
+			buf.WriteByte('\'')
+		} else {
+			buf.WriteString(val)
+		}
+	case time.Time:
+		buf.WriteString(fmt.Sprintf("'%s'", val.Format(tsTimeLayout)))
+	default:
+		return fmt.Errorf("unknown parameter: %#v (%T)", val, val)
+	}
+	return nil
 }
