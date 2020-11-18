@@ -166,6 +166,64 @@ func unmarshalSubsegment(seg *xray.Segment) []*xray.Segment {
 	return segs
 }
 
+func TestConn_QueryContext_NamedParams(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var input *timestreamquery.QueryInput
+		_ = json.NewDecoder(r.Body).Decode(&input)
+		expected := `SELECT age FROM db1.table1 WHERE name = 'yuno'`
+		if *input.QueryString != expected {
+			t.Errorf("QueryString\n  actual=%q\nexpected=%q", *input.QueryString, expected)
+		}
+		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
+			ColumnInfo: []*timestreamquery.ColumnInfo{
+				scalarColumn("age", timestreamquery.ScalarTypeInteger),
+			},
+			Rows: []*timestreamquery.Row{
+				{
+					Data: []*timestreamquery.Datum{
+						{ScalarValue: aws.String("16")},
+					},
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+	tsq := timestreamquery.New(session.Must(session.NewSessionWithOptions(session.Options{
+		Config: aws.Config{
+			Region:      aws.String("us-east-1"),
+			Endpoint:    aws.String(srv.URL),
+			Credentials: credentials.NewStaticCredentials("id", "secret", "token"),
+		},
+	})))
+
+	ctx := context.Background()
+	db := sql.OpenDB(&connector{tsq})
+	rows, err := db.QueryContext(ctx, `SELECT age FROM db1.table1 WHERE name = $name$`, sql.Named("name", "yuno"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	cols, err := rows.Columns()
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedColumns := []string{"age"}
+	if !reflect.DeepEqual(cols, expectedColumns) {
+		t.Errorf("Rows.Columns(): expected=%#v got=%#v", expectedColumns, cols)
+	}
+	for rows.Next() {
+		var (
+			c1 int
+		)
+		if err := rows.Scan(&c1); err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(c1, 16) {
+			t.Errorf("Rows.Scan(): expected=%#v got=%#v", 16, c1)
+		}
+	}
+}
+
 func TestConn_QueryContext_Array(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(&timestreamquery.QueryOutput{
@@ -264,6 +322,8 @@ func Test_interpolatesQuery(t *testing.T) {
 		{"string parameter", args{"SELECT age FROM db1.table1 WHERE name = ?", []driver.NamedValue{{Ordinal: 1, Value: "yuno"}}}, "SELECT age FROM db1.table1 WHERE name = 'yuno'", false},
 		{"valuer parameter", args{"SELECT age FROM db1.table1 WHERE name = ?", []driver.NamedValue{{Ordinal: 1, Value: &yuno{}}}}, "SELECT age FROM db1.table1 WHERE name = 'yuno'", false},
 		{"bare parameter", args{"SELECT * FROM db1.table1 WHERE last_login > ago(?)", []driver.NamedValue{{Ordinal: 1, Value: BareStringValue{"7d"}}}}, "SELECT * FROM db1.table1 WHERE last_login > ago(7d)", false},
+
+		{"named/int parameter", args{"SELECT name FROM db1.table1 WHERE age = $age$", []driver.NamedValue{{Name: "age", Ordinal: 1, Value: int64(20)}}}, "SELECT name FROM db1.table1 WHERE age = 20", false},
 
 		{"less parameters", args{"SELECT name FROM db1.table1 WHERE age = ?", []driver.NamedValue{}}, "", true},
 		{"unhandleable parameters", args{"SELECT name FROM db1.table1 WHERE age = ?", []driver.NamedValue{{Ordinal: 1, Value: []string{"hi"}}}}, "", true},
