@@ -7,12 +7,13 @@ import (
 	"strconv"
 )
 
-type CustomType interface {
+type customType = interface {
 	sql.Scanner
 	// TODO: driver.Valuer
 }
 
-func Array(x interface{}) CustomType {
+// Array converts `x` into corresponding concrete scannable types.
+func Array(x interface{}) customType {
 	switch x := x.(type) {
 	case []string:
 		return (*StringArray)(&x)
@@ -35,9 +36,10 @@ func Array(x interface{}) CustomType {
 	return nil // TODO
 }
 
+// StringArray is a wrapper type of []string that scannable by database/sql
 type StringArray []string
 
-var _ CustomType = &StringArray{}
+var _ customType = &StringArray{}
 
 func (a *StringArray) Scan(src interface{}) error {
 	switch src := src.(type) {
@@ -57,9 +59,10 @@ func (a *StringArray) Scan(src interface{}) error {
 	}
 }
 
+// IntegerArray is a wrapper type of []int that scannable by database/sql
 type IntegerArray []int
 
-var _ CustomType = &IntegerArray{}
+var _ customType = &IntegerArray{}
 
 func (a *IntegerArray) Scan(src interface{}) error {
 	switch src := src.(type) {
@@ -83,9 +86,10 @@ func (a *IntegerArray) Scan(src interface{}) error {
 	}
 }
 
+// FloatArray is a wrapper type of []float64 that scannable by database/sql
 type FloatArray []float64
 
-var _ CustomType = &FloatArray{}
+var _ customType = &FloatArray{}
 
 func (a *FloatArray) Scan(src interface{}) error {
 	switch src := src.(type) {
@@ -109,9 +113,10 @@ func (a *FloatArray) Scan(src interface{}) error {
 	}
 }
 
+// BooleanArray is a wrapper type of []bool that scannable by database/sql
 type BooleanArray []bool
 
-var _ CustomType = &BooleanArray{}
+var _ customType = &BooleanArray{}
 
 func (a *BooleanArray) Scan(src interface{}) error {
 	switch src := src.(type) {

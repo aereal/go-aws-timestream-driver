@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/aereal/go-aws-timestream-driver/config"
-	"github.com/aereal/go-aws-timestream-driver/constants"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -14,8 +12,9 @@ import (
 	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
-var (
-	DriverName = constants.DriverName
+const (
+	// DriverName is name of the driver that this package provides
+	DriverName = "awstimestream"
 )
 
 func init() {
@@ -33,7 +32,7 @@ func (d *Driver) Open(dsn string) (driver.Conn, error) {
 }
 
 func (d *Driver) OpenConnector(dsn string) (driver.Connector, error) {
-	cfg, err := config.ParseDSN(dsn)
+	cfg, err := ParseDSN(dsn)
 	if err != nil {
 		return nil, err
 	}
