@@ -7,7 +7,7 @@ import (
 	"strconv"
 )
 
-type customType interface {
+type customType = interface {
 	sql.Scanner
 	// TODO: driver.Valuer
 }
