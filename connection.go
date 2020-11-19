@@ -6,12 +6,15 @@ import (
 	"database/sql/driver"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/timestreamquery"
 	"github.com/aws/aws-sdk-go/service/timestreamquery/timestreamqueryiface"
+	"github.com/aws/aws-xray-sdk-go/xray"
 )
 
 var (
@@ -24,7 +27,8 @@ var (
 )
 
 type conn struct {
-	tsq timestreamqueryiface.TimestreamQueryAPI
+	tsq    timestreamqueryiface.TimestreamQueryAPI
+	logger *log.Logger
 }
 
 var _ interface {
@@ -44,11 +48,28 @@ func (conn) Close() error {
 	return nil
 }
 
+func (c *conn) logf(msg string, args ...interface{}) {
+	if c.logger == nil {
+		c.logger = log.New(os.Stderr, "timestream-driver: ", log.LstdFlags)
+	}
+	c.logger.Printf(msg, args...)
+}
+
 func (c *conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if seg := xray.GetSegment(ctx); seg != nil {
+		c.logf("[QueryContext] segment found id=%q traceID=%q", seg.ID, seg.TraceID)
+	} else {
+		c.logf("[QueryContext] no segment found")
+	}
 	return c.queryContext(ctx, query, args)
 }
 
 func (c *conn) queryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	if seg := xray.GetSegment(ctx); seg != nil {
+		c.logf("[queryContext] segment found id=%q traceID=%q", seg.ID, seg.TraceID)
+	} else {
+		c.logf("[queryContext] no segment found")
+	}
 	enhancedQuery, err := interpolatesQuery(query, args)
 	if err != nil {
 		return nil, err
