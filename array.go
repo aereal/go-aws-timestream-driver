@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
@@ -31,9 +32,52 @@ func Array(x interface{}) customType {
 		return (*BooleanArray)(x)
 	case []bool:
 		return (*BooleanArray)(&x)
+	default:
+		switch reflect.TypeOf(x).Kind() {
+		case reflect.Ptr, reflect.Array, reflect.Slice:
+			return &AnyArray{E: x}
+		default:
+			return nil
+		}
 	}
+}
 
-	return nil // TODO
+type AnyArray struct{ E interface{} }
+
+var _ sql.Scanner = &AnyArray{}
+
+func (a *AnyArray) Scan(src interface{}) error {
+	switch src := src.(type) {
+	case []byte:
+		var cd columnDatum
+		if err := json.Unmarshal(src, &cd); err != nil {
+			return err
+		}
+		ret, err := scanAny(cd)
+		if err != nil {
+			return err
+		}
+		a.E = ret
+		return nil
+	default:
+		return fmt.Errorf("timestream: cannot convert %T", src)
+	}
+}
+
+func scanAny(cd columnDatum) (interface{}, error) {
+	if cd.Datum.ScalarValue != nil {
+		return scanScalarColumn(cd.Datum, cd.ColumnInfo)
+	}
+	ret := make([]interface{}, len(cd.Datum.ArrayValue))
+	elem := cd.ColumnInfo.Type.ArrayColumnInfo
+	for i, v := range cd.Datum.ArrayValue {
+		var err error
+		ret[i], err = scanAny(columnDatum{ColumnInfo: elem, Datum: v})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return ret, nil
 }
 
 // StringArray is a wrapper type of []string that scannable by database/sql

@@ -15,6 +15,7 @@ func TestArray(t *testing.T) {
 		{"integers", []int{1, 2}, &IntegerArray{1, 2}},
 		{"float values", []float64{1.0, 2.0}, &FloatArray{1.0, 2.0}},
 		{"booleans", []bool{false, true}, &BooleanArray{false, true}},
+		{"nested", [][]string{{"a", "b"}, {"c", "d"}}, &AnyArray{E: [][]string{{"a", "b"}, {"c", "d"}}}},
 		{"unhandleable type", "", nil},
 	}
 	for _, c := range cases {
