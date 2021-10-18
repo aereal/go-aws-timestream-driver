@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: lint
-        uses: reviewdog/action-golangci-lint@v1
+        uses: reviewdog/action-golangci-lint@v2
   test:
     name: Test Go=${{ matrix.go_version }} os=${{ matrix.os }} with xray=${{ matrix.with_xray }}
     continue-on-error: ${{ matrix.with_xray }}
